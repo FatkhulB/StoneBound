@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="description" content="STONEBOUND — The Sword That Hated Heroes. A retro 2D platformer." />
+    <title>STONEBOUND</title>
+    <style>
+      :root {
+        --safe-left: env(safe-area-inset-left, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0d0f1a;
+        touch-action: none;
+        overscroll-behavior: none;
+      }
+      #game {
+        width: 100%;
+        height: 100%;
+        margin: 0 auto;
+      }
+      #game canvas {
+        display: block;
+        margin: 0 auto;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      /* ---------- Touch controls (injected by src/ui/TouchControls.ts) ---------- */
+      #touch-layer {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        display: none;
+        z-index: 20;
+        font-family: 'Courier New', monospace;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #touch-layer.visible { display: block; }
+      .tbtn {
+        position: absolute;
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        border: 2px solid rgba(139, 147, 176, 0.85);
+        background: rgba(21, 23, 38, 0.55);
+        color: #d7dcf0;
+        font-weight: bold;
+        letter-spacing: 1px;
+        min-width: 52px;
+        min-height: 52px;
+        font-size: 15px;
+        transition: background 60ms linear, transform 60ms linear;
+      }
+      .tbtn.small { min-width: 48px; min-height: 48px; font-size: 12px; }
+      .tbtn.pressed {
+        background: rgba(46, 230, 168, 0.35);
+        border-color: #2ee6a8;
+        transform: scale(0.94);
+      }
+      .tbtn.hidden { display: none; }
+      /* Left cluster: movement */
+      #btn-left  { left: calc(14px + var(--safe-left));  bottom: calc(20px + var(--safe-bottom)); width: 64px; height: 64px; }
+      #btn-right { left: calc(92px + var(--safe-left));  bottom: calc(20px + var(--safe-bottom)); width: 64px; height: 64px; }
+      /* Right cluster: actions */
+      #btn-attack { right: calc(96px + var(--safe-right)); bottom: calc(20px + var(--safe-bottom)); width: 64px; height: 64px; }
+      #btn-jump   { right: calc(14px + var(--safe-right)); bottom: calc(48px + var(--safe-bottom)); width: 68px; height: 68px; }
+      #btn-dash   { right: calc(172px + var(--safe-right)); bottom: calc(16px + var(--safe-bottom)); }
+      #btn-skill  { right: calc(172px + var(--safe-right)); bottom: calc(78px + var(--safe-bottom)); }
+      #btn-interact { right: calc(96px + var(--safe-right)); bottom: calc(100px + var(--safe-bottom)); border-color: #ffd24a; color: #ffd24a; }
+
+      /* ---------- Portrait overlay (mobile landscape-only requirement) ---------- */
+      #portrait-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #0d0f1a;
+        color: #d7dcf0;
+        font-family: 'Courier New', monospace;
+        text-align: center;
+        padding: 24px;
+      }
+      #portrait-overlay .phone {
+        width: 46px;
+        height: 78px;
+        border: 3px solid #8b93b0;
+        border-radius: 8px;
+        animation: rotate-device 1.6s ease-in-out infinite;
+      }
+      @keyframes rotate-device {
+        0%, 20% { transform: rotate(0deg); }
+        60%, 100% { transform: rotate(90deg); }
+      }
+      #portrait-overlay h2 { font-size: 18px; letter-spacing: 1px; }
+      /* Show only on coarse-pointer devices held in portrait (desktop portrait windows stay usable) */
+      @media (orientation: portrait) and (pointer: coarse) {
+        #portrait-overlay.armed { display: flex; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="touch-layer"></div>
+    <div id="portrait-overlay" class="armed">
+      <div class="phone"></div>
+      <h2>Rotate your device to play</h2>
+      <p>STONEBOUND plays in landscape only.</p>
+    </div>
+    <noscript>
+      <p style="color: #d7dcf0; font-family: monospace; padding: 24px">
+        STONEBOUND requires JavaScript to run.
+      </p>
+    </noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

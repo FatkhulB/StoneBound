@@ -1,0 +1,95 @@
+rules_version = '2';
+
+// STONEBOUND Firestore security rules (design.md §12).
+// Scope every save to its authenticated owner; deny unauthenticated access;
+// validate the save shape before accepting writes.
+//
+// Deploy: firebase deploy --only firestore:rules   (see firebase/README.md)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ---- Player saves: one document per account under /saves/{uid} ----
+    match /saves/{uid} {
+      allow get, list: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && validSave(request.resource.data, request.auth.uid);
+
+      allow update: if isOwner(uid)
+        && validSave(request.resource.data, request.auth.uid)
+        // Revision must increase: transactional conflict checks stay meaningful.
+        && request.resource.data.revision > resource.data.revision;
+
+      allow delete: if false; // keep server-side; client reset writes a fresh doc
+    }
+
+    // ---- Session lease documents: /sessions/{uid} (best-effort single session) ----
+    match /sessions/{uid} {
+      allow get: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['deviceId', 'updatedAtClient', 'updatedAtServer'])
+        && request.resource.data.deviceId is string
+        && request.resource.data.deviceId.size() > 0
+        && request.resource.data.updatedAtClient is number;
+      allow delete: if isOwner(uid);
+    }
+
+    // Deny everything else by default (including other users' documents).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---- Save shape validation (subset of src/services/SaveModel.ts) ----
+    function validSave(d, uid) {
+      return d.keys().hasOnly([
+        'schemaVersion', 'revision', 'updatedAt', 'accountId',
+        'unlockedStage', 'completedStageIds', 'firstClearClaimedIds',
+        'walletCoins', 'ownedWeaponIds', 'equippedWeaponId',
+        'unlockedSkillIds', 'equippedSkillId', 'difficulty', 'settings',
+        'activeAttempt', 'updatedAtServer'
+      ])
+      && d.schemaVersion == 1
+      && d.revision is int
+      && d.updatedAt is number
+      && d.accountId == uid
+      && d.unlockedStage is int && d.unlockedStage >= 1
+      && d.completedStageIds is list
+      && d.firstClearClaimedIds is list
+      && d.walletCoins is int && d.walletCoins >= 0
+      && d.ownedWeaponIds is list && d.ownedWeaponIds.size() > 0
+      && d.equippedWeaponId is string
+      && d.unlockedSkillIds is list
+      && d.difficulty in ['easy', 'normal', 'hard']
+      && d.settings is map
+      && (d.activeAttempt == null || validAttempt(d.activeAttempt));
+    }
+
+    function validAttempt(a) {
+      return a.keys().hasOnly([
+        'attemptId', 'stageId', 'difficultyAtStart', 'livesRemaining',
+        'checkpointId', 'checkpointSnapshot', 'hasMainKey', 'bossDefeated',
+        'attemptCoins', 'collectedPickupIds', 'rewardedEnemyIds',
+        'completionCommitted'
+      ])
+      && a.attemptId is string && a.attemptId.size() > 0
+      && a.stageId is int && a.stageId >= 1 && a.stageId <= 10
+      && a.difficultyAtStart in ['easy', 'normal', 'hard']
+      && a.livesRemaining is int && a.livesRemaining >= 0 && a.livesRemaining <= 3
+      && a.hasMainKey is bool
+      && a.bossDefeated is bool
+      && a.attemptCoins is int && a.attemptCoins >= 0
+      && a.collectedPickupIds is list
+      && a.rewardedEnemyIds is list
+      && a.completionCommitted is bool;
+    }
+  }
+}
