@@ -80,8 +80,25 @@ export class MenuScene extends Phaser.Scene {
             EventBus.emit(EV.toast, 'Add Firebase config in .env to enable cloud saves.');
             return;
           }
-          if (progression.isSignedIn) void progression.signOut().then(() => this.scene.restart());
-          else void progression.signInGoogle().then(() => this.scene.restart());
+          if (progression.isSignedIn) {
+            void progression.signOut().then(() => this.scene.restart());
+          } else {
+            progression
+              .signInGoogle()
+              .then(() => this.scene.restart())
+              .catch((err: unknown) => {
+                const code = String((err as { code?: string })?.code ?? err ?? '');
+                const msg =
+                  code.includes('popup-blocked')
+                    ? 'Popup blocked — allow popups for this site and try again.'
+                    : code.includes('popup-closed-by-user')
+                      ? 'Sign-in cancelled.'
+                      : code.includes('unauthorized-domain')
+                        ? 'Domain not authorized in Firebase Authentication settings.'
+                        : 'Sign-in failed — check your connection and try again.';
+                EventBus.emit(EV.toast, msg);
+              });
+          }
         },
       },
     );
