@@ -6,7 +6,7 @@ export const GAME = {
   width: 480,
   height: 270,
   backgroundColor: '#1e2233',
-  fontFamily: '"Courier New", monospace',
+  fontFamily: '"Press Start 2P", "Courier New", monospace',
   /** World-space hint text for the pre-alpha build (placeholder assets notice). */
   versionLabel: 'STONEBOUND pre-alpha — placeholder art',
 } as const;

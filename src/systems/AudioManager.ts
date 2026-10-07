@@ -12,7 +12,8 @@ import { AUDIO } from '../config/audio-config';
 export type SfxName =
   | 'ui' | 'jump' | 'airjump' | 'land' | 'attack' | 'hit' | 'hurt' | 'coin'
   | 'checkpoint' | 'key' | 'door' | 'puzzle' | 'lever' | 'gate' | 'dash'
-  | 'break' | 'death' | 'boss-hit' | 'boss-die' | 'torch';
+  | 'break' | 'death' | 'boss-hit' | 'boss-die' | 'torch' | 'skill' | 'telegraph'
+  | 'monsterlunge' | 'enemydie' | 'spit';
 
 export type MusicTrack = 'menu' | 'explore' | 'boss' | 'results' | 'ending' | null;
 
@@ -29,6 +30,8 @@ interface ChordBar {
 }
 
 interface TrackDef {
+  /** Sing the lead through vowel formants instead of a plain wave. */
+  leadVoice?: boolean;
   tempo: number;            // BPM
   progression: ChordBar[];
   bassSteps: number[];      // 16th-step indices the bass plays (root)
@@ -57,10 +60,11 @@ const TRACKS: Record<Exclude<MusicTrack, null>, TrackDef> = {
     hat: [4, 12],
     leadWave: 'triangle',
     leadVol: 0.1,
+    leadVoice: true,
   },
   // Explore: A-minor journey — walking bass, arpeggio lead, steady beat.
   explore: {
-    tempo: 112,
+    tempo: 126,
     progression: [
       { root: N.A2, tones: [N.A3, N.C4, N.E4] },
       { root: N.F2, tones: [N.F3, N.A3, N.C4] },
@@ -77,7 +81,7 @@ const TRACKS: Record<Exclude<MusicTrack, null>, TrackDef> = {
   },
   // Boss: driving, faster, darker (D minor feel via D/A/F/G).
   boss: {
-    tempo: 138,
+    tempo: 148,
     progression: [
       { root: N.D2, tones: [N.D4, N.F4, N.A4] },
       { root: N.A2, tones: [N.A3, N.C4, N.E4] },
@@ -123,6 +127,7 @@ const TRACKS: Record<Exclude<MusicTrack, null>, TrackDef> = {
     hat: [8],
     leadWave: 'triangle',
     leadVol: 0.1,
+    leadVoice: true,
   },
 };
 
@@ -279,7 +284,50 @@ class AudioManager {
       case 'boss-hit': this.tone(150, 0.1, { type: 'sawtooth', slideTo: 80, vol: 0.18 }); this.noise(0.05, 0.12); break;
       case 'boss-die': this.tone(400, 0.7, { type: 'sawtooth', slideTo: 60, vol: 0.22 }); this.noise(0.4, 0.14, 0.1); this.tone(80, 0.6, { type: 'sine', slideTo: 40, vol: 0.2 }); break;
       case 'torch': this.noise(0.15, 0.03); break;
+      // v3 additions
+      case 'skill': [660, 880, 1174, 1568].forEach((f, i) => this.tone(f, 0.09, { type: 'triangle', vol: 0.14, delay: i * 0.045, echo: true })); this.noise(0.18, 0.08); break;
+      case 'telegraph': this.tone(1180, 0.07, { vol: 0.09 }); this.tone(1180, 0.07, { vol: 0.09, delay: 0.11 }); break;
+      case 'monsterlunge': this.noise(0.09, 0.2); this.tone(180, 0.12, { type: 'sawtooth', slideTo: 70, vol: 0.18 }); break;
+      case 'enemydie': this.tone(340, 0.22, { type: 'sawtooth', slideTo: 60, vol: 0.18 }); this.noise(0.16, 0.12, 0.02); break;
+      case 'spit': this.tone(300, 0.1, { slideTo: 520, vol: 0.12 }); this.noise(0.06, 0.08); break;
     }
+  }
+
+  /**
+   * Pseudo-vocal lead: a saw through two vowel formant band-passes (00e0 la 'ah').
+   * Gives the loop a singer-like hook without any recorded audio.
+   */
+  private voice(freq: number, dur: number, vol = 0.12): void {
+    if (!this.ctx || !this.unlocked || !this.musicGain) return;
+    const t0 = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, t0);
+    osc.frequency.linearRampToValueAtTime(freq * 1.01, t0 + dur);
+    const vib = this.ctx.createOscillator();
+    vib.frequency.value = 5.5;
+    const vibGain = this.ctx.createGain();
+    vibGain.gain.value = freq * 0.012;
+    vib.connect(vibGain).connect(osc.frequency);
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.linearRampToValueAtTime(vol, t0 + 0.06);
+    env.gain.setValueAtTime(vol, t0 + dur * 0.6);
+    env.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    const f1 = this.ctx.createBiquadFilter();
+    f1.type = 'bandpass'; f1.frequency.value = 720; f1.Q.value = 9;
+    const f2 = this.ctx.createBiquadFilter();
+    f2.type = 'bandpass'; f2.frequency.value = 1180; f2.Q.value = 7;
+    const mix = this.ctx.createGain();
+    mix.gain.value = 0.9;
+    osc.connect(f1).connect(mix);
+    osc.connect(f2).connect(mix);
+    const body = this.ctx.createGain();
+    body.gain.value = 2.2;
+    mix.connect(body).connect(env).connect(this.musicGain);
+    env.connect(this.echo!);
+    osc.start(t0); vib.start(t0);
+    osc.stop(t0 + dur + 0.05); vib.stop(t0 + dur + 0.05);
   }
 
   /** Chord-progression sequencer; switching tracks stops the previous one. */
@@ -304,7 +352,8 @@ class AudioManager {
       const leadIdx = def.leadPattern[Math.floor(s / 2)];
       if (s % 2 === 0 && leadIdx >= 0 && leadIdx < chord.tones.length) {
         const freq = chord.tones[leadIdx] * 2;
-        this.tone(freq, stepMs / 1000 * 1.4, { type: def.leadWave, vol: def.leadVol, gain: this.musicGain, echo: true });
+        if (def.leadVoice) this.voice(freq, (stepMs / 1000) * 1.9, def.leadVol + 0.03);
+        else this.tone(freq, (stepMs / 1000) * 1.4, { type: def.leadWave, vol: def.leadVol, gain: this.musicGain, echo: true });
       }
       if (s === 0) {
         chord.tones.forEach((tone, i) =>

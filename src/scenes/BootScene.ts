@@ -12,7 +12,20 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     installAudioUnlock();
     createAllPlaceholderTextures(this);
-    this.scene.start('Preload');
+    // Wait (briefly) for the pixel webfont so no text pops in with the fallback.
+    const go = (): void => {
+      this.scene.start('Preload');
+    };
+    const cap = this.time.delayedCall(1200, go);
+    if (document.fonts?.load) {
+      document.fonts
+        .load('10px "Press Start 2P"')
+        .then(() => {
+          cap.remove();
+          go();
+        })
+        .catch(go);
+    }
   }
 }
 

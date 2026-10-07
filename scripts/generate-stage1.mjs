@@ -106,19 +106,22 @@ const objects = [
   { type: 'checkpoint', id: 'cp_mid', x: 74, y: 17 },
   { type: 'checkpoint', id: 'cp_boss', x: 97, y: 17 },
 
-  // Living-world dressing (design.md §4 vibe pass)
+  // Living-world dressing — kept minimal for readability (playtest v0.3).
   ...[
-    ['torch', 2], ['torch', 20], ['torch', 26], ['torch', 40], ['torch', 63],
-    ['torch', 73], ['torch', 88], ['torch', 96], ['torch', 103], ['torch', 111], ['torch', 132],
+    ['torch', 2], ['torch', 40], ['torch', 73], ['torch', 96], ['torch', 132],
   ].map(([kind, x]) => ({ type: 'decor', id: `${kind}_${x}`, x, y: 17 })),
-  ...[5, 11, 19, 24, 28, 31, 34, 38, 54, 56, 64, 71, 80, 89, 93, 99, 108, 116, 120, 129, 136]
+  ...[6, 19, 31, 54, 71, 89, 108, 129]
     .map((x, i) => ({ type: 'decor', id: `grass_${i}`, x, y: 17 })),
-  ...[[8, 17], [30, 17], [56, 17], [72, 17], [91, 17], [129, 17]].map(([x, y], i) => ({
+  ...[[12, 17], [92, 17]].map(([x, y], i) => ({
     type: 'decor', id: `flower_${i}`, x, y,
   })),
-  ...[[9, 17], [37, 17], [60, 17], [82, 17], [110, 17], [136, 17]].map(([x, y], i) => ({
+  ...[[38, 17], [111, 17]].map(([x, y], i) => ({
     type: 'decor', id: `column_${i}`, x, y,
   })),
+
+  // Ranged variety: rooted ember-spitters guarding the key chamber and pre-boss road.
+  { type: 'spitter', id: 'spitter_1', x: 68, y: 17 },
+  { type: 'spitter', id: 'spitter_2', x: 92, y: 17 },
 
   { type: 'arena_gate', id: 'arena_gate', x: 102, y: 14, heightTiles: 4 },
   { type: 'boss', id: 'caretaker', x: 113, y: 17 },

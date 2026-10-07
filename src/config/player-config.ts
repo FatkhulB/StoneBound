@@ -36,16 +36,16 @@ export const PLAYER = {
     passesThroughWalls: false,
   },
 
-  /** Starter melee combat: visible wind-up and recovery, single hit per target per swing. */
+  /** Starter melee combat: responsive swings with a readable slash. */
   combat: {
     damage: 12,
-    intervalMs: 600,
-    windupMs: 150,
-    activeMs: 150,
+    intervalMs: 480,
+    windupMs: 100,
+    activeMs: 140,
     /** recoveryMs = interval - windup - active */
-    reachX: 20,
-    reachY: 26,
-    offset: 14,
+    reachX: 28,
+    reachY: 30,
+    offset: 17,
   },
 } as const;
 

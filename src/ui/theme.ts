@@ -31,8 +31,8 @@ export const COLORS = {
   // UI
   uiPanel: 0x151726,
   uiPanelLight: 0x232741,
-  uiText: 0xd7dcf0,
-  uiMuted: 0x8b93b0,
+  uiText: 0xeef1ff,
+  uiMuted: 0x9aa6c8,
   uiAccent: 0x2ee6a8,
   uiDanger: 0xff5050,
 } as const;

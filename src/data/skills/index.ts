@@ -22,9 +22,11 @@ export const SKILLS: SkillDef[] = [
   {
     id: 'light_burst',
     name: 'Light Burst',
-    unlockedAfterStage: 3,
+    // Playtest change (v0.3): available from the start so every attempt has an
+    // active skill; 20 area damage around the hero, 8s cooldown.
+    unlockedAfterStage: 0,
     cooldownMs: 8000,
-    description: '20 area damage around Pip.',
+    description: '20 area damage around Pip. 8s cooldown.',
   },
   {
     id: 'guard',

@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import {
   BOY_AIR, BOY_ATTACK1, BOY_ATTACK2, BOY_IDLE1, BOY_IDLE2, BOY_PALETTE, BOY_RUN1, BOY_RUN2,
-  ENEMY_PALETTE, ENEMY_WALK1, ENEMY_WALK2, GIRL_AIR, GIRL_ATTACK1, GIRL_ATTACK2, GIRL_IDLE1,
-  GIRL_IDLE2, GIRL_PALETTE, GIRL_RUN1, GIRL_RUN2, SLASH1, SLASH2, SLASH_PALETTE, BOSS_MAP,
-  BOSS_PALETTE, type PixelMap,
+  BOLT, ENEMY_PALETTE, ENEMY_WALK1, ENEMY_WALK2, GIRL_AIR, GIRL_ATTACK1, GIRL_ATTACK2, GIRL_IDLE1,
+  GIRL_IDLE2, GIRL_PALETTE, GIRL_RUN1, GIRL_RUN2, MONSTER_ATTACK, MONSTER_PALETTE, MONSTER_TELEGRAPH,
+  MONSTER_WALK1, MONSTER_WALK2, SLASH1, SLASH2, SLASH_PALETTE, BOSS_MAP, BOSS_PALETTE, SPITTER_ATTACK,
+  SPITTER_IDLE, SPITTER_PALETTE, type PixelMap,
 } from './pixel-art';
 import { COLORS } from '../ui/theme';
 
@@ -87,6 +88,13 @@ export function createCharacterTextures(scene: Phaser.Scene): void {
 export function createEnemyTextures(scene: Phaser.Scene): void {
   spriteTex(scene, 'patrol1', ENEMY_WALK1, ENEMY_PALETTE);
   spriteTex(scene, 'patrol2', ENEMY_WALK2, ENEMY_PALETTE);
+  spriteTex(scene, 'monster_walk1', MONSTER_WALK1, MONSTER_PALETTE);
+  spriteTex(scene, 'monster_walk2', MONSTER_WALK2, MONSTER_PALETTE);
+  spriteTex(scene, 'monster_telegraph', MONSTER_TELEGRAPH, MONSTER_PALETTE);
+  spriteTex(scene, 'monster_attack', MONSTER_ATTACK, MONSTER_PALETTE);
+  spriteTex(scene, 'spitter_idle', SPITTER_IDLE, SPITTER_PALETTE);
+  spriteTex(scene, 'spitter_attack', SPITTER_ATTACK, SPITTER_PALETTE);
+  spriteTex(scene, 'bolt', BOLT, SPITTER_PALETTE);
   spriteTex(scene, 'caretaker', BOSS_MAP, BOSS_PALETTE);
   tex(scene, 'hammer', 24, 10, (g) => {
     g.fillStyle(0x6b4a2b, 1);
@@ -449,6 +457,9 @@ export function createAllPlaceholderTextures(scene: Phaser.Scene): void {
   createEnemyTextures(scene);
   createInteractableTextures(scene);
   createDecorTextures(scene);
+  if (document.fonts?.load) {
+    void document.fonts.load('10px "Press Start 2P"');
+  }
   console.info('[STONEBOUND] Pixel art generated in code — original assets (ASSET_LICENSES.md).');
 }
 

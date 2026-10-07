@@ -454,3 +454,142 @@ export const SLASH_PALETTE: Record<string, string> = {
   w: '#ffffff',
   f: '#ff9ecb',
 };
+
+/** ---------------------------------------------------------------- stage-1 monsters (v3) */
+
+export const MONSTER_PALETTE: Record<string, string> = {
+  o: '#141828',
+  b: '#8a4ecf', // hide
+  B: '#5c2f96', // hide shade
+  h: '#c9a2f0', // horn
+  e: '#ff5f9e', // glowing eyes
+  j: '#ffcb6b', // jaw / teeth
+  J: '#7a2f56', // mouth
+  w: '#ffffff',
+};
+
+/** Gravemaw — a horned gravewalker that lunges and bites (no contact damage). */
+export const MONSTER_WALK1: PixelMap = [
+  '..oo..........oo..',
+  '.ohho........ohho.',
+  '.ohhoo......oohho.',
+  '..obboo....oobbo..',
+  '..obbbboooobbbbo..',
+  '.obeeeebbbbbeeebo.',
+  '.obeewbbbbbbeewbo.',
+  '.obbbbobbbobbbbbo.',
+  'oobbbbbbbbbbbbbboo',
+  'obbbbbbbbbbbbbbbbbo',
+  'obBbbbbbbbbbbbbbBbo',
+  '.obbbJJJJJJJJJbbo.',
+  '..obJjJjJjJjJbo...',
+  '..oBbbo....obBo...',
+  '..obbo......obbo..',
+  '..oooo......oooo..',
+];
+
+export const MONSTER_WALK2: PixelMap = [
+  '..oo..........oo..',
+  '.ohho........ohho.',
+  '.ohhoo......oohho.',
+  '..obboo....oobbo..',
+  '..obbbboooobbbbo..',
+  '.obeeeebbbbbeeebo.',
+  '.obeewbbbbbbeewbo.',
+  '.obbbbobbbobbbbbo.',
+  'oobbbbbbbbbbbbbboo',
+  'obbbbbbbbbbbbbbbbbo',
+  'obBbbbbbbbbbbbbbBbo',
+  '.obbbJJJJJJJJJbbo.',
+  '..obJjJjJjJjJbo...',
+  '...obbo....obbo...',
+  '...obbo....obbo...',
+  '...oooo....oooo...',
+];
+
+/** Crouched, eyes blazing — the readable warning before the lunge. */
+export const MONSTER_TELEGRAPH: PixelMap = [
+  '..oo..........oo..',
+  '.ohho........ohho.',
+  '.ohhoo......oohho.',
+  '..obboo....oobbo..',
+  '..obbbboooobbbbo..',
+  '.oeeewwbbbbbwweeeo',
+  '.oeeeebbbbbbeeeeo.',
+  '.obbbbobbbobbbbbo.',
+  'oobbbbbbbbbbbbbboo',
+  'obbbbbbbbbbbbbbbbbo',
+  'obBbbbbbbbbbbbbbBbo',
+  '.obbbJJJJJJJJJbbo.',
+  '..obJjJjJjJjJbo...',
+  '..obBbo....obBbo..',
+  '.obbo........obbo.',
+  '.oo............oo.',
+];
+
+/** Lunge: jaw wide open, body stretched. */
+export const MONSTER_ATTACK: PixelMap = [
+  '....................',
+  '.oo..........oo.....',
+  'ohho........ohho....',
+  'ohhoo......oohho....',
+  '.obboo....oobbo.....',
+  '.obbbboooobbbbo.....',
+  'oeeeebbbbbbbeeeo....',
+  'oeewwbbbbbbbweewo...',
+  'obbbbobbbobbbbbo....',
+  'obbbbbbbbbbbbbbbbo..',
+  'obbbbbbbbbbbbbbbbo..',
+  'obbbJJJJJJJJJbbbo...',
+  'obbJjwjJjwjJjwbbo...',
+  '.obbJjJjJjJjJjbo....',
+  '..obbbbo...obbbo....',
+  '..obbo.......obbo...',
+  '..obo.........obo...',
+  '..oo...........oo...',
+];
+
+/** Cinderpot — a rooted urn-monster that spits embers. */
+export const SPITTER_IDLE: PixelMap = [
+  '..oooooo..',
+  '.obbbbbbo.',
+  'obbbbbbbbo',
+  'obbbbbbbbo',
+  'obkebbbekbo'.slice(0, 10),
+  'obbbbbbbbo',
+  '.obbbbbbo.',
+  '.oBoooBoB.',
+  '.obbo.obbo',
+  '.oooo.oooo',
+];
+
+export const SPITTER_ATTACK: PixelMap = [
+  '..oooooo..',
+  '.obbbbbbo.',
+  'obbbbbbbbo',
+  'obbbbbbbbo',
+  'obJJJJJJbo',
+  'obJjwjwJbo',
+  '.obJJJJbo.',
+  '.oBoooBoB.',
+  '.obbo.obbo',
+  '.oooo.oooo',
+];
+
+export const SPITTER_PALETTE: Record<string, string> = {
+  o: '#141828',
+  b: '#c96b3d',
+  B: '#8a4526',
+  k: '#241d14',
+  e: '#ffd24a',
+  J: '#5c1f2e',
+  j: '#ff9a3d',
+  w: '#fff3b0',
+};
+
+export const BOLT: PixelMap = [
+  '.ee.',
+  'ewwe',
+  'ewwe',
+  '.ee.',
+];

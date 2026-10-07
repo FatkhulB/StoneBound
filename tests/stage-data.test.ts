@@ -79,9 +79,9 @@ describe('equipment data (design.md §6)', () => {
     expect(bow.damage).toBe(10);
   });
 
-  it('skills unlock after stages 0/3/6', () => {
+  it('skills unlock after stages 0/0/6 (Light Burst available from the start, playtest v0.3)', () => {
     expect(SKILLS.find((s) => s.id === 'dash')!.unlockedAfterStage).toBe(0);
-    expect(SKILLS.find((s) => s.id === 'light_burst')!.unlockedAfterStage).toBe(3);
+    expect(SKILLS.find((s) => s.id === 'light_burst')!.unlockedAfterStage).toBe(0);
     expect(SKILLS.find((s) => s.id === 'guard')!.unlockedAfterStage).toBe(6);
   });
 });

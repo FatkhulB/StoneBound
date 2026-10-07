@@ -386,26 +386,8 @@
     },
     {
       "type": "decor",
-      "id": "torch_20",
-      "x": 20,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "torch_26",
-      "x": 26,
-      "y": 17
-    },
-    {
-      "type": "decor",
       "id": "torch_40",
       "x": 40,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "torch_63",
-      "x": 63,
       "y": 17
     },
     {
@@ -416,26 +398,8 @@
     },
     {
       "type": "decor",
-      "id": "torch_88",
-      "x": 88,
-      "y": 17
-    },
-    {
-      "type": "decor",
       "id": "torch_96",
       "x": 96,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "torch_103",
-      "x": 103,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "torch_111",
-      "x": 111,
       "y": 17
     },
     {
@@ -447,199 +411,85 @@
     {
       "type": "decor",
       "id": "grass_0",
-      "x": 5,
+      "x": 6,
       "y": 17
     },
     {
       "type": "decor",
       "id": "grass_1",
-      "x": 11,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_2",
       "x": 19,
       "y": 17
     },
     {
       "type": "decor",
-      "id": "grass_3",
-      "x": 24,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_4",
-      "x": 28,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_5",
+      "id": "grass_2",
       "x": 31,
       "y": 17
     },
     {
       "type": "decor",
-      "id": "grass_6",
-      "x": 34,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_7",
-      "x": 38,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_8",
+      "id": "grass_3",
       "x": 54,
       "y": 17
     },
     {
       "type": "decor",
-      "id": "grass_9",
-      "x": 56,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_10",
-      "x": 64,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_11",
+      "id": "grass_4",
       "x": 71,
       "y": 17
     },
     {
       "type": "decor",
-      "id": "grass_12",
-      "x": 80,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_13",
+      "id": "grass_5",
       "x": 89,
       "y": 17
     },
     {
       "type": "decor",
-      "id": "grass_14",
-      "x": 93,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_15",
-      "x": 99,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_16",
+      "id": "grass_6",
       "x": 108,
       "y": 17
     },
     {
       "type": "decor",
-      "id": "grass_17",
-      "x": 116,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_18",
-      "x": 120,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_19",
+      "id": "grass_7",
       "x": 129,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "grass_20",
-      "x": 136,
       "y": 17
     },
     {
       "type": "decor",
       "id": "flower_0",
-      "x": 8,
+      "x": 12,
       "y": 17
     },
     {
       "type": "decor",
       "id": "flower_1",
-      "x": 30,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "flower_2",
-      "x": 56,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "flower_3",
-      "x": 72,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "flower_4",
-      "x": 91,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "flower_5",
-      "x": 129,
+      "x": 92,
       "y": 17
     },
     {
       "type": "decor",
       "id": "column_0",
-      "x": 9,
+      "x": 38,
       "y": 17
     },
     {
       "type": "decor",
       "id": "column_1",
-      "x": 37,
+      "x": 111,
       "y": 17
     },
     {
-      "type": "decor",
-      "id": "column_2",
-      "x": 60,
+      "type": "spitter",
+      "id": "spitter_1",
+      "x": 68,
       "y": 17
     },
     {
-      "type": "decor",
-      "id": "column_3",
-      "x": 82,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "column_4",
-      "x": 110,
-      "y": 17
-    },
-    {
-      "type": "decor",
-      "id": "column_5",
-      "x": 136,
+      "type": "spitter",
+      "id": "spitter_2",
+      "x": 92,
       "y": 17
     },
     {

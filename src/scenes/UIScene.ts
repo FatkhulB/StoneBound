@@ -12,6 +12,7 @@ export interface HudState {
   attemptCoins: number;
   hasKey: boolean;
   dashCooldownFraction: number;
+  skillCooldownFraction: number;
 }
 
 const STATUS_LABEL: Record<SaveStatus, string> = {
@@ -38,7 +39,7 @@ export class UIScene extends Phaser.Scene {
   private toastUntil = 0;
   private dialogue!: DialogueSystem;
   private pauseBtn!: Phaser.GameObjects.Rectangle;
-  private state: HudState = { hp: 100, maxHp: 100, lives: 3, attemptCoins: 0, hasKey: false, dashCooldownFraction: 0 };
+  private state: HudState = { hp: 100, maxHp: 100, lives: 3, attemptCoins: 0, hasKey: false, dashCooldownFraction: 0, skillCooldownFraction: 0 };
 
   constructor() {
     super('UI');
@@ -132,10 +133,13 @@ export class UIScene extends Phaser.Scene {
     this.coinText.setText(String(this.state.attemptCoins));
     this.keyIcon.setAlpha(this.state.hasKey ? 1 : 0.25);
 
-    // ---- dash cooldown ----
+    // ---- dash + skill cooldown ----
     const dashFrac = 1 - this.state.dashCooldownFraction;
     this.hud.fillStyle(COLORS.uiPanel, 0.85).fillRect(6, 43, 40, 6);
     this.hud.fillStyle(dashFrac >= 1 ? COLORS.teal : COLORS.uiMuted, 1).fillRect(7, 44, 38 * dashFrac, 4);
+    const skillFrac = 1 - this.state.skillCooldownFraction;
+    this.hud.fillStyle(COLORS.uiPanel, 0.85).fillRect(6, 52, 40, 6);
+    this.hud.fillStyle(skillFrac >= 1 ? 0xff5f9e : COLORS.uiMuted, 1).fillRect(7, 53, 38 * skillFrac, 4);
 
     // ---- boss bar ----
     if (this.bossActive) {

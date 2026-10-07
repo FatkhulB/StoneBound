@@ -77,8 +77,8 @@ export function createDefaultSave(accountId: string): PlayerSave {
     walletCoins: 0,
     ownedWeaponIds: [STARTER_WEAPON_ID],
     equippedWeaponId: STARTER_WEAPON_ID,
-    unlockedSkillIds: ['dash'],
-    equippedSkillId: null,
+    unlockedSkillIds: ['dash', 'light_burst'],
+    equippedSkillId: 'light_burst',
     difficulty: DEFAULT_DIFFICULTY,
     settings: {
       musicVolume: AUDIO.defaultMusicVolume,

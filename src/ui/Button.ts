@@ -22,7 +22,9 @@ export function makeButton(
   label: string,
   opts: ButtonOptions = {},
 ): Phaser.GameObjects.Container {
-  const { width = 160, height = 20, disabled = false, muted = false, accent = 'teal', onClick } = opts;
+  const { height = 20, disabled = false, muted = false, accent = 'teal', onClick } = opts;
+  // Auto-grow with the pixel font so long labels never touch the border.
+  const width = Math.max(opts.width ?? 160, label.length * 11 + 26);
   const color = disabled || muted ? ACCENTS.muted : ACCENTS[accent];
 
   const bg = scene.add.graphics();

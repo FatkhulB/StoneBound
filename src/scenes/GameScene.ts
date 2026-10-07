@@ -5,7 +5,7 @@ import { STARTING_LIVES } from '../config/player-config';
 import { getStage, type StageData, type StageObject } from '../data/stages';
 import { getWeapon } from '../data/weapons';
 import { Player } from '../entities/player/Player';
-import { PatrolEnemy } from '../entities/enemies/PatrolEnemy';
+import { EmberBolt, SpitterMonster, WalkerMonster, type MonsterContext } from '../entities/enemies/Monsters';
 import { BronzeCaretaker } from '../entities/bosses/BronzeCaretaker';
 import { AttemptLedger } from '../systems/AttemptLedger';
 import { InputManager } from '../systems/InputManager';
@@ -49,7 +49,9 @@ export class GameScene extends Phaser.Scene {
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private map!: Phaser.Tilemaps.Tilemap;
 
-  private enemies = new Map<string, PatrolEnemy>();
+  private enemies = new Map<string, WalkerMonster | SpitterMonster>();
+  private bolts: EmberBolt[] = [];
+  private burstReadyAt = 0;
   private blocks: PushBlock[] = [];
   private plates: { id: string; x: number; y: number; image: Phaser.GameObjects.Image }[] = [];
   private gates = new Map<string, GateObj>();
@@ -106,7 +108,10 @@ export class GameScene extends Phaser.Scene {
     }
     this.stage = stage;
     const existing = progression.current.activeAttempt;
-    if (data.resume && existing && existing.stageId === stageId && !existing.completionCommitted) {
+    if (
+      data.resume && existing && existing.stageId === stageId &&
+      !existing.completionCommitted && existing.livesRemaining > 0
+    ) {
       this.difficulty = DIFFICULTIES[existing.difficultyAtStart];
     } else {
       progression.startAttempt(stageId, progression.current.difficulty);
@@ -243,7 +248,13 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case 'patrol': {
-        const e = new PatrolEnemy(this, o.id!, cx, bottom, o.minX! * TILE, o.maxX! * TILE);
+        const e = new WalkerMonster(this, o.id!, cx, bottom, o.minX! * TILE, o.maxX! * TILE, this.difficulty.enemyDamageMultiplier);
+        this.enemies.set(o.id!, e);
+        this.physics.add.collider(e, this.layer);
+        break;
+      }
+      case 'spitter': {
+        const e = new SpitterMonster(this, o.id!, cx, bottom);
         this.enemies.set(o.id!, e);
         this.physics.add.collider(e, this.layer);
         break;
@@ -435,16 +446,16 @@ export class GameScene extends Phaser.Scene {
       .setDepth(-2)
       .setAlpha(0.9);
 
-    // Fireflies wandering near the ground across the whole stage.
-    for (let i = 0; i < 12; i++) {
+    // A few calm fireflies — ambience without clutter (playtest v0.3).
+    for (let i = 0; i < 6; i++) {
       const fx = Phaser.Math.Between(40, pxW - 40);
       const fy = pxH - Phaser.Math.Between(20, 90);
-      const fly = this.add.image(fx, fy, 'firefly').setDepth(2).setAlpha(0.7);
+      const fly = this.add.image(fx, fy, 'firefly').setDepth(2).setAlpha(0.55);
       this.tweens.add({
         targets: fly,
         x: fx + Phaser.Math.Between(-50, 50),
         y: fy + Phaser.Math.Between(-22, 22),
-        alpha: 0.25,
+        alpha: 0.2,
         duration: Phaser.Math.Between(1600, 3200),
         yoyo: true,
         repeat: -1,
@@ -502,6 +513,7 @@ export class GameScene extends Phaser.Scene {
       attemptCoins: this.ledger.coins,
       hasKey: this.hasMainKey,
       dashCooldownFraction: this.player.dashCooldownFraction,
+      skillCooldownFraction: Phaser.Math.Clamp((this.burstReadyAt - this.time.now) / 8000, 0, 1),
     });
 
     if (this.worldPaused) return;
@@ -512,8 +524,14 @@ export class GameScene extends Phaser.Scene {
     const dt = delta / 1000;
     for (const cloud of this.nightClouds) cloud.image.tilePositionX += cloud.speed * dt * 10;
 
+    // ---- equipped skill: Light Burst (playtest v0.3, design.md §6) ----
+    if (this.inputMgr.pressed('skill') && progression.current.equippedSkillId === 'light_burst' && this.time.now >= this.burstReadyAt) {
+      this.burstReadyAt = this.time.now + 8000;
+      this.lightBurst();
+    }
+
     this.player.update(this.time.now, delta, this.inputMgr);
-    this.updateEnemies();
+    this.updateEnemies(dt);
     this.boss?.update(dt, this.player);
     this.updateBlocks();
     this.updatePuzzle();
@@ -524,19 +542,56 @@ export class GameScene extends Phaser.Scene {
     this.updatePitAndDeath();
   }
 
-  private updateEnemies(): void {
+  private updateEnemies(dt: number): void {
     const groundAhead = (x: number, y: number): boolean => {
       const tile = this.map.getTileAtWorldXY(x, y);
       return tile !== null && tile.collides;
     };
-    this.enemies.forEach((e) => e.update(0, groundAhead));
-    // Contact damage.
-    for (const e of this.enemies.values()) {
-      if (e.dead) continue;
-      if (Math.abs(e.x - this.player.x) < 13 && Math.abs(e.y - this.player.y) < 16) {
-        this.player.hurt(Math.round(10 * this.difficulty.enemyDamageMultiplier), e.x);
+    const ctx: MonsterContext = {
+      playerX: this.player.x,
+      playerY: this.player.y,
+      playerHurt: (dmg, fromX) => this.player.hurt(dmg, fromX),
+      damageMult: this.difficulty.enemyDamageMultiplier,
+      groundAhead,
+      onDeath: (id) => {
+        const reward = Phaser.Math.Between(2, 3);
+        this.ledger.rewardEnemy(id, reward);
+        this.syncLedger();
+      },
+    };
+    this.enemies.forEach((e) => {
+      e.update(dt, ctx);
+      if (e.dead && !this.deadRewarded.has(e.id)) {
+        this.deadRewarded.add(e.id);
+        ctx.onDeath(e.id);
+      }
+    });
+    // Ember bolts: fly, die on walls, hurt only on contact.
+    for (const bolt of [...this.bolts]) {
+      if (!bolt.active) {
+        this.bolts = this.bolts.filter((b) => b !== bolt);
+        continue;
+      }
+      const tile = this.map.getTileAtWorldXY(bolt.x, bolt.y);
+      if ((tile && tile.collides) || Math.abs(bolt.x - this.player.x) > this.stage.width * TILE) {
+        bolt.destroy();
+        continue;
+      }
+      if (Math.abs(bolt.x - this.player.x) < 9 && Math.abs(bolt.y - (this.player.y - 9)) < 12) {
+        this.player.hurt(Math.round(10 * this.difficulty.enemyDamageMultiplier), bolt.x);
+        bolt.destroy();
       }
     }
+    void this.bolts;
+  }
+
+  private deadRewarded = new Set<string>();
+
+  /** Cinderpot's projectile (design.md §5 rework). */
+  spawnEmberBolt(x: number, y: number, dir: 1 | -1): void {
+    const bolt = new EmberBolt(this, x, y, dir, Math.round(10 * this.difficulty.enemyDamageMultiplier));
+    this.physics.add.collider(bolt, this.layer, () => bolt.destroy());
+    this.bolts.push(bolt);
   }
 
   private updateBlocks(): void {
@@ -606,15 +661,9 @@ export class GameScene extends Phaser.Scene {
     this.enemies.forEach((e, id) => {
       if (e.dead) return;
       if (hitbox.contains(e.x, e.y - 6) && hit(id)) {
-        const wasAlive = e.hp > 0;
         e.hurt(damage, this.player.x);
         this.hitSparks(e.x, e.y - 6, 0xff9ecb);
-        if (wasAlive && e.dead) {
-          // Enemy reward: 1–3 coins, granted once per enemy per attempt (design.md §8).
-          const reward = Phaser.Math.Between(1, 3);
-          this.ledger.rewardEnemy(id, reward);
-          this.syncLedger();
-        }
+        if (!progression.current.settings.reduceShake) this.cameras.main.shake(50, 0.003);
       }
     });
     if (this.boss && !this.boss.defeated && this.boss.state !== 'dormant') {
@@ -776,8 +825,8 @@ export class GameScene extends Phaser.Scene {
 
   /** Make enemy alive/dead state match the given dead-id list. */
   private syncEnemies(deadIds: string[]): void {
-    const defs = this.stage.objects.filter((o) => o.type === 'patrol');
-    for (const def of defs) {
+    for (const def of this.stage.objects) {
+      if (def.type !== 'patrol' && def.type !== 'spitter') continue;
       const id = def.id!;
       const current = this.enemies.get(id);
       const shouldStayDead = deadIds.includes(id);
@@ -788,7 +837,13 @@ export class GameScene extends Phaser.Scene {
       if (!current || current.dead) {
         current?.destroy();
         this.enemies.delete(id);
-        const ne = new PatrolEnemy(this, id, def.x * TILE + 8, (def.y ?? 17) * TILE + TILE, def.minX! * TILE, def.maxX! * TILE);
+        const bottom = (def.y ?? 17) * TILE + TILE;
+        let ne: WalkerMonster | SpitterMonster;
+        if (def.type === 'spitter') {
+          ne = new SpitterMonster(this, id, def.x * TILE + TILE / 2, bottom);
+        } else {
+          ne = new WalkerMonster(this, id, def.x * TILE + 8, bottom, def.minX! * TILE, def.maxX! * TILE, this.difficulty.enemyDamageMultiplier);
+        }
         this.physics.add.collider(ne, this.layer);
         this.enemies.set(id, ne);
       }
@@ -824,6 +879,33 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------ gates & puzzle
+
+  /** Light Burst: 20 area damage + clears nearby ember bolts (design.md §6). */
+  private lightBurst(): void {
+    audioManager.play('skill');
+    const ring = this.add.circle(this.player.x, this.player.y - 10, 10, 0xa8f5e9, 0.35).setDepth(9);
+    this.tweens.add({
+      targets: ring,
+      scale: 6.5,
+      alpha: 0,
+      duration: 320,
+      ease: 'Cubic.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+    if (!progression.current.settings.reduceShake) this.cameras.main.shake(90, 0.004);
+    this.enemies.forEach((e) => {
+      if (!e.dead && Phaser.Math.Distance.Between(e.x, e.y - 6, this.player.x, this.player.y - 10) < 64) {
+        e.hurt(20, this.player.x);
+        this.hitSparks(e.x, e.y - 8, 0xa8f5e9);
+      }
+    });
+    for (const bolt of [...this.bolts]) {
+      if (bolt.active && Phaser.Math.Distance.Between(bolt.x, bolt.y, this.player.x, this.player.y - 10) < 70) {
+        this.hitSparks(bolt.x, bolt.y, 0xa8f5e9);
+        bolt.destroy();
+      }
+    }
+  }
 
   /** Impact spark burst that sells every landed hit. */
   private hitSparks(x: number, y: number, tint: number): void {

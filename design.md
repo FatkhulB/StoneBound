@@ -1,12 +1,24 @@
 # STONEBOUND — Game Design Document & PRD
 
-Version: 0.3
+Version: 0.4
 Date: October 7, 2026
 Status: Implementation-ready draft. Core requirements and story direction are approved; balancing values and implementation details are proposals for playtesting.
 Document language: English
 Game language: English
 
 ## 0. Changelog
+
+- **0.4 (combat & readability pass, playtest feedback):** enemies no longer deal
+  contact damage — every monster now has its own attack. **Gravemaw** (horned
+  walker): patrol → chase → telegraph (crouch, blazing eyes, alarm) → lunge
+  bite → recover. **Cinderpot** (rooted urn): telegraphs then spits a slow
+  ember bolt. Attack feel: faster swings (480ms cycle, 100ms wind-up), longer
+  reach, hit sparks + micro-shake, jump/land squash-stretch with dust, triple
+  dash afterimage. **Light Burst available from the start** (L key) with a
+  skill cooldown bar. Map dressing thinned for readability; menu shows both
+  heroes; UI font switched to Press Start 2P; brighter text palette; music
+  tempo raised with a vowel-formant "vocal" lead; new SFX (telegraph, lunge,
+  enemy death, spit, skill).
 
 - **0.3 (art & feel pass):** pixel-art heroes with outline & shading and a
   **character select (Pip boy / Pipa girl, cosmetic)**; **W or Space jumps, with

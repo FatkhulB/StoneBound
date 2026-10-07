@@ -26,6 +26,16 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    // The heroes flank the menu, standing on the cobble strip.
+    const heroIdle = (key: string, x: number, flip: boolean, bobMs: number): void => {
+      const hero = this.add.image(x, height - 14, key).setOrigin(0.5, 1).setScale(4).setFlipX(flip);
+      const veyr = this.add.image(x - (flip ? -30 : 30), height - 62, 'veyr_stone').setScale(3);
+      this.tweens.add({ targets: hero, y: '-=4', yoyo: true, repeat: -1, duration: bobMs, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: veyr, y: '-=4', yoyo: true, repeat: -1, duration: bobMs, ease: 'Sine.easeInOut' });
+    };
+    heroIdle('portrait_boy', 46, true, 950);
+    heroIdle('portrait_girl', width - 46, false, 1100);
+
     const attempt = progression.current.activeAttempt;
     const save = progression.current;
     const cx = width / 2;

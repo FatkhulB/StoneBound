@@ -28,6 +28,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private attackStartedAt = -Infinity;
   private lungeUntil = 0;
   private knockbackUntil = 0;
+  private wasGrounded = true;
   private swingId = 0;
   readonly swingHitIds = new Set<string>();
   private lastSafe = { x: 0, y: 0 };
@@ -99,6 +100,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.airJumpsUsed = 0;
         this.lastJumpPressAt = -Infinity;
         this.lastGroundedAt = -Infinity;
+        this.squashStretch(1.28, 0.74);
+        this.groundPuff(5);
         audioManager.play('jump');
       } else if (this.airJumpsUsed < 1) {
         this.airJumpsUsed += 1;
@@ -144,7 +147,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.slash.setAngle(this.facing === 1 ? 0 : 0);
     }
 
-    // ---- last safe position (pit recovery) ----
+    // ---- last safe position (pit recovery) + landing feedback ----
+    if (grounded && !this.wasGrounded && body.velocity.y >= 0) {
+      this.squashStretch(1.3, 0.72);
+      this.groundPuff(6);
+      audioManager.play('land');
+    }
+    this.wasGrounded = grounded;
     if (grounded && time - this.lastSafeUpdateAt > 300) {
       this.lastSafeUpdateAt = time;
       this.lastSafe = { x: this.x, y: this.y };
@@ -200,14 +209,42 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  /** Landing/take-off dust kicked up at the feet. */
+  private groundPuff(count: number): void {
+    for (let i = 0; i < count; i++) {
+      const p = this.scene.add
+        .image(this.x + Phaser.Math.Between(-6, 6), this.y - 1, 'spark')
+        .setDepth(4)
+        .setTint(0x9aa3c4)
+        .setAlpha(0.8)
+        .setScale(0.8);
+      this.scene.tweens.add({
+        targets: p,
+        x: p.x + Phaser.Math.Between(-14, 14),
+        y: p.y - Phaser.Math.Between(2, 6),
+        alpha: 0,
+        duration: 240,
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  /** Squash & stretch pop that sells jumps and landings. */
+  private squashStretch(scaleX: number, scaleY: number): void {
+    this.setScale(scaleX, scaleY);
+    this.scene.tweens.add({ targets: this, scaleX: 1, scaleY: 1, duration: 170, ease: 'Back.easeOut' });
+  }
+
   private afterimage(): void {
-    const ghost = this.scene.add
-      .image(this.x, this.y - 11, this.texture.key)
-      .setFlipX(this.flipX)
-      .setAlpha(0.35)
-      .setTint(0x38d6c4)
-      .setDepth(4);
-    this.scene.tweens.add({ targets: ghost, alpha: 0, duration: 220, onComplete: () => ghost.destroy() });
+    for (let i = 0; i < 3; i++) {
+      const ghost = this.scene.add
+        .image(this.x - this.facing * i * 8, this.y - 11, this.texture.key)
+        .setFlipX(this.flipX)
+        .setAlpha(0.4 - i * 0.12)
+        .setTint(0x5ee9d4)
+        .setDepth(4);
+      this.scene.tweens.add({ targets: ghost, alpha: 0, duration: 200 + i * 60, onComplete: () => ghost.destroy() });
+    }
   }
 
   /** Attack hitbox during active frames, else null. One hit per target per swing. */

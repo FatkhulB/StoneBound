@@ -44,6 +44,11 @@ class ProgressionManager {
       }
       EventBus.emit(EV.saveStatus, cloudSaveManager.isConfigured ? 'local' : 'not-configured');
     }
+    // An attempt with no lives left cannot be continued — clear it up front.
+    if (this.save.activeAttempt && this.save.activeAttempt.livesRemaining <= 0) {
+      this.save.activeAttempt = null;
+      LocalSaveManager.save(this.save);
+    }
     this.started = true;
   }
 
