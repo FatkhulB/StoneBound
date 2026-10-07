@@ -1,45 +1,145 @@
 import { AUDIO } from '../config/audio-config';
 
 /**
- * WebAudio synth for placeholder SFX and ambient loops (design.md §11).
- * All sound is code-generated (original) — see ASSET_LICENSES.md.
- * Audio starts only after a user action; music/SFX volumes are independent;
- * tracks never duplicate (one loop instance at a time).
+ * WebAudio synth v2 (design.md §11). Original code-generated audio — see
+ * ASSET_LICENSES.md. Audio starts after a user gesture; music/SFX volumes are
+ * independent; one music loop at a time.
+ *
+ * Music v2: chord-progression sequencer with four voices (bass, arpeggio lead
+ * with echo, warm pad, percussion) so the loops sound composed, not flat.
  */
 
 export type SfxName =
-  | 'ui'
-  | 'jump'
-  | 'land'
-  | 'attack'
-  | 'hit'
-  | 'hurt'
-  | 'coin'
-  | 'checkpoint'
-  | 'key'
-  | 'door'
-  | 'puzzle'
-  | 'lever'
-  | 'gate'
-  | 'dash'
-  | 'break'
-  | 'death'
-  | 'boss-hit'
-  | 'boss-die';
+  | 'ui' | 'jump' | 'airjump' | 'land' | 'attack' | 'hit' | 'hurt' | 'coin'
+  | 'checkpoint' | 'key' | 'door' | 'puzzle' | 'lever' | 'gate' | 'dash'
+  | 'break' | 'death' | 'boss-hit' | 'boss-die' | 'torch';
 
 export type MusicTrack = 'menu' | 'explore' | 'boss' | 'results' | 'ending' | null;
+
+const N: Record<string, number> = {
+  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.0, A3: 220.0, B3: 246.94,
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.0, A4: 440.0, B4: 493.88,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.0,
+  C2: 65.41, D2: 73.42, F2: 87.31, G2: 98.0, A2: 110.0, B2: 123.47,
+};
+
+interface ChordBar {
+  root: number;      // bass note
+  tones: number[];   // chord tones (octave 3/4) for arpeggio + pad
+}
+
+interface TrackDef {
+  tempo: number;            // BPM
+  progression: ChordBar[];
+  bassSteps: number[];      // 16th-step indices the bass plays (root)
+  leadPattern: number[];    // chord-tone index per quarter step (-1 = rest)
+  kick: number[];
+  snare: number[];
+  hat: number[];
+  leadWave: OscillatorType;
+  leadVol: number;
+}
+
+const TRACKS: Record<Exclude<MusicTrack, null>, TrackDef> = {
+  // Dreamy: slow pad chords + sparse bright arpeggio.
+  menu: {
+    tempo: 92,
+    progression: [
+      { root: N.A2, tones: [N.A3, N.C4, N.E4] },
+      { root: N.F2, tones: [N.F3, N.A3, N.C4] },
+      { root: N.C3, tones: [N.C4, N.E4, N.G4] },
+      { root: N.G2, tones: [N.G3, N.B3, N.D4] },
+    ],
+    bassSteps: [0, 8],
+    leadPattern: [0, -1, 2, -1, 1, -1, 2, -1],
+    kick: [0],
+    snare: [],
+    hat: [4, 12],
+    leadWave: 'triangle',
+    leadVol: 0.1,
+  },
+  // Explore: A-minor journey — walking bass, arpeggio lead, steady beat.
+  explore: {
+    tempo: 112,
+    progression: [
+      { root: N.A2, tones: [N.A3, N.C4, N.E4] },
+      { root: N.F2, tones: [N.F3, N.A3, N.C4] },
+      { root: N.C3, tones: [N.C4, N.E4, N.G4] },
+      { root: N.G2, tones: [N.G3, N.B3, N.D4] },
+    ],
+    bassSteps: [0, 2, 4, 6, 8, 10, 12, 14],
+    leadPattern: [0, 1, 2, 1, 0, 2, 1, 2],
+    kick: [0, 8],
+    snare: [4, 12],
+    hat: [2, 6, 10, 14],
+    leadWave: 'square',
+    leadVol: 0.07,
+  },
+  // Boss: driving, faster, darker (D minor feel via D/A/F/G).
+  boss: {
+    tempo: 138,
+    progression: [
+      { root: N.D2, tones: [N.D4, N.F4, N.A4] },
+      { root: N.A2, tones: [N.A3, N.C4, N.E4] },
+      { root: N.F2, tones: [N.F4, N.A4, N.C5] },
+      { root: N.G2, tones: [N.G3, N.B3, N.D4] },
+    ],
+    bassSteps: [0, 2, 3, 4, 6, 8, 10, 11, 12, 14],
+    leadPattern: [0, 2, 1, 2, 0, 1, 2, 1],
+    kick: [0, 6, 8, 14],
+    snare: [4, 12],
+    hat: [2, 6, 10, 14],
+    leadWave: 'sawtooth',
+    leadVol: 0.06,
+  },
+  results: {
+    tempo: 120,
+    progression: [
+      { root: N.C3, tones: [N.C4, N.E4, N.G4] },
+      { root: N.G2, tones: [N.G3, N.B3, N.D4] },
+      { root: N.A2, tones: [N.A3, N.C4, N.E4] },
+      { root: N.F2, tones: [N.F3, N.A3, N.C4] },
+    ],
+    bassSteps: [0, 4, 8, 12],
+    leadPattern: [0, 1, 2, 1, 2, 1, 0, 1],
+    kick: [0, 8],
+    snare: [4, 12],
+    hat: [2, 6, 10, 14],
+    leadWave: 'triangle',
+    leadVol: 0.09,
+  },
+  ending: {
+    tempo: 84,
+    progression: [
+      { root: N.F2, tones: [N.F3, N.A3, N.C4] },
+      { root: N.C3, tones: [N.C4, N.E4, N.G4] },
+      { root: N.D3, tones: [N.D4, N.F4, N.A4] },
+      { root: N.G2, tones: [N.G3, N.B3, N.D4] },
+    ],
+    bassSteps: [0, 8],
+    leadPattern: [0, -1, 1, -1, 2, -1, 1, 2],
+    kick: [0],
+    snare: [],
+    hat: [8],
+    leadWave: 'triangle',
+    leadVol: 0.1,
+  },
+};
+
+const STEP_SUBDIV = 4; // 16th steps per beat
 
 class AudioManager {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
+  private echo: DelayNode | null = null;
   private musicVolume: number = AUDIO.defaultMusicVolume;
   private sfxVolume: number = AUDIO.defaultSfxVolume;
   private muted: boolean = AUDIO.defaultMuted;
   private currentTrack: MusicTrack = null;
   private musicTimer: ReturnType<typeof setInterval> | null = null;
-  private beat = 0;
+  private step = 0;
   private unlocked = false;
 
   /** Must be called from a user-gesture handler (design.md §11). */
@@ -57,6 +157,17 @@ class AudioManager {
     this.musicGain.connect(this.master);
     this.sfxGain = this.ctx.createGain();
     this.sfxGain.connect(this.master);
+    // Feedback echo bus for the lead voice.
+    this.echo = this.ctx.createDelay(0.6);
+    this.echo.delayTime.value = 0.24;
+    const feedback = this.ctx.createGain();
+    feedback.gain.value = 0.22;
+    const echoOut = this.ctx.createGain();
+    echoOut.gain.value = 0.5;
+    this.echo.connect(feedback);
+    feedback.connect(this.echo);
+    this.echo.connect(echoOut);
+    echoOut.connect(this.musicGain);
     this.applyVolumes();
     this.unlocked = true;
   }
@@ -64,7 +175,7 @@ class AudioManager {
   private applyVolumes(): void {
     if (!this.master || !this.musicGain || !this.sfxGain) return;
     this.master.gain.value = this.muted ? 0 : 1;
-    this.musicGain.gain.value = this.musicVolume * 0.35;
+    this.musicGain.gain.value = this.musicVolume * 0.3;
     this.sfxGain.gain.value = this.sfxVolume;
   }
 
@@ -90,92 +201,124 @@ class AudioManager {
   private tone(
     freq: number,
     dur: number,
-    opts: { type?: OscillatorType; vol?: number; slideTo?: number; delay?: number; gain?: GainNode | null } = {},
+    opts: {
+      type?: OscillatorType;
+      vol?: number;
+      slideTo?: number;
+      delay?: number;
+      gain?: GainNode | null;
+      attack?: number;
+      echo?: boolean;
+    } = {},
   ): void {
     if (!this.ctx || !this.unlocked) return;
-    const { type = 'square', vol = 0.25, slideTo, delay = 0, gain = this.sfxGain } = opts;
+    const { type = 'square', vol = 0.2, slideTo, delay = 0, gain = this.sfxGain, attack = 0.004, echo = false } = opts;
     const t0 = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator();
-    const g = this.ctx.createGain();
+    const env = this.ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t0);
     if (slideTo !== undefined) osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
-    g.gain.setValueAtTime(vol, t0);
-    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    osc.connect(g).connect(gain ?? this.sfxGain!);
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.linearRampToValueAtTime(vol, t0 + attack);
+    env.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    osc.connect(env);
+    env.connect(gain ?? this.sfxGain!);
+    if (echo && this.echo) env.connect(this.echo);
     osc.start(t0);
-    osc.stop(t0 + dur + 0.02);
+    osc.stop(t0 + dur + 0.05);
   }
 
-  private noise(dur: number, vol = 0.2, delay = 0): void {
+  private noise(dur: number, vol = 0.2, delay = 0, gain: GainNode | null = this.sfxGain): void {
     if (!this.ctx || !this.unlocked) return;
     const t0 = this.ctx.currentTime + delay;
-    const frames = Math.floor(this.ctx.sampleRate * dur);
+    const frames = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
     const buffer = this.ctx.createBuffer(1, frames, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+    for (let i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames) ** 1.5;
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(vol, t0);
-    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    src.connect(g).connect(this.sfxGain!);
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(vol, t0);
+    env.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    src.connect(env);
+    env.connect(gain ?? this.sfxGain!);
     src.start(t0);
   }
 
   play(name: SfxName): void {
     if (!this.ctx) return;
     switch (name) {
-      case 'ui': this.tone(660, 0.06, { type: 'square', vol: 0.12 }); break;
-      case 'jump': this.tone(280, 0.14, { type: 'triangle', slideTo: 520, vol: 0.2 }); break;
-      case 'land': this.noise(0.05, 0.1); break;
-      case 'attack': this.tone(180, 0.08, { type: 'square', vol: 0.16, slideTo: 120 }); this.noise(0.05, 0.1); break;
-      case 'hit': this.tone(220, 0.09, { type: 'sawtooth', slideTo: 90, vol: 0.2 }); break;
-      case 'hurt': this.tone(200, 0.18, { type: 'square', slideTo: 90, vol: 0.24 }); this.noise(0.12, 0.15); break;
-      case 'coin': this.tone(880, 0.07, { type: 'sine', vol: 0.18 }); this.tone(1318, 0.1, { type: 'sine', vol: 0.15, delay: 0.06 }); break;
-      case 'checkpoint': [523, 659, 784].forEach((f, i) => this.tone(f, 0.12, { type: 'triangle', vol: 0.16, delay: i * 0.09 })); break;
-      case 'key': [700, 900, 1200].forEach((f, i) => this.tone(f, 0.12, { type: 'triangle', vol: 0.17, delay: i * 0.08 })); break;
-      case 'door': this.tone(140, 0.3, { type: 'triangle', slideTo: 90, vol: 0.2 }); break;
-      case 'puzzle': this.tone(400, 0.1, { type: 'triangle', vol: 0.15 }); this.tone(600, 0.14, { type: 'triangle', vol: 0.15, delay: 0.1 }); break;
-      case 'lever': this.tone(250, 0.07, { type: 'square', vol: 0.15 }); break;
-      case 'gate': this.tone(100, 0.4, { type: 'triangle', slideTo: 60, vol: 0.22 }); this.noise(0.25, 0.08, 0.05); break;
-      case 'dash': this.noise(0.12, 0.16); break;
-      case 'break': this.noise(0.25, 0.24); this.tone(120, 0.2, { type: 'square', slideTo: 60, vol: 0.15 }); break;
-      case 'death': this.tone(300, 0.5, { type: 'sawtooth', slideTo: 55, vol: 0.22 }); break;
-      case 'boss-hit': this.tone(150, 0.1, { type: 'sawtooth', slideTo: 80, vol: 0.2 }); break;
-      case 'boss-die': this.tone(400, 0.7, { type: 'sawtooth', slideTo: 60, vol: 0.24 }); this.noise(0.4, 0.15, 0.1); break;
+      case 'ui': this.tone(660, 0.06, { vol: 0.1 }); this.tone(880, 0.05, { vol: 0.06, delay: 0.04 }); break;
+      case 'jump': this.tone(300, 0.13, { type: 'triangle', slideTo: 620, vol: 0.2 }); break;
+      case 'airjump': this.tone(420, 0.12, { type: 'triangle', slideTo: 820, vol: 0.16 }); this.noise(0.08, 0.08); break;
+      case 'land': this.noise(0.05, 0.09); break;
+      // Punchy attack: whoosh + impact thump + crack.
+      case 'attack':
+        this.noise(0.06, 0.22);
+        this.tone(320, 0.06, { slideTo: 120, vol: 0.16 });
+        this.tone(160, 0.09, { type: 'sine', slideTo: 70, vol: 0.26, delay: 0.015 });
+        this.tone(900, 0.03, { vol: 0.09, delay: 0.01 });
+        break;
+      case 'hit':
+        this.noise(0.08, 0.24);
+        this.tone(240, 0.09, { type: 'triangle', slideTo: 80, vol: 0.28 });
+        this.tone(1200, 0.025, { vol: 0.1 });
+        break;
+      case 'hurt': this.tone(220, 0.16, { slideTo: 90, vol: 0.22 }); this.noise(0.1, 0.14); break;
+      case 'coin': this.tone(988, 0.06, { type: 'sine', vol: 0.16 }); this.tone(1319, 0.12, { type: 'sine', vol: 0.14, delay: 0.055 }); break;
+      case 'checkpoint': [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.11, { type: 'triangle', vol: 0.13, delay: i * 0.07, echo: true })); break;
+      case 'key': [700, 900, 1200, 1500].forEach((f, i) => this.tone(f, 0.1, { type: 'triangle', vol: 0.15, delay: i * 0.06, echo: true })); break;
+      case 'door': this.tone(140, 0.3, { type: 'triangle', slideTo: 90, vol: 0.2 }); this.noise(0.2, 0.08, 0.05); break;
+      case 'puzzle': this.tone(400, 0.1, { type: 'triangle', vol: 0.14 }); this.tone(600, 0.14, { type: 'triangle', vol: 0.14, delay: 0.1, echo: true }); break;
+      case 'lever': this.tone(250, 0.07, { vol: 0.14 }); break;
+      case 'gate': this.tone(100, 0.4, { type: 'triangle', slideTo: 60, vol: 0.2 }); this.noise(0.25, 0.08, 0.05); break;
+      case 'dash': this.noise(0.1, 0.14); this.tone(500, 0.08, { slideTo: 900, vol: 0.05, type: 'sine' }); break;
+      case 'break': this.noise(0.22, 0.24); this.tone(120, 0.2, { slideTo: 60, vol: 0.16 }); break;
+      case 'death': this.tone(300, 0.5, { type: 'sawtooth', slideTo: 55, vol: 0.2 }); this.noise(0.3, 0.1, 0.1); break;
+      case 'boss-hit': this.tone(150, 0.1, { type: 'sawtooth', slideTo: 80, vol: 0.18 }); this.noise(0.05, 0.12); break;
+      case 'boss-die': this.tone(400, 0.7, { type: 'sawtooth', slideTo: 60, vol: 0.22 }); this.noise(0.4, 0.14, 0.1); this.tone(80, 0.6, { type: 'sine', slideTo: 40, vol: 0.2 }); break;
+      case 'torch': this.noise(0.15, 0.03); break;
     }
   }
 
-  /** Simple generative loops; switching tracks stops the previous one. */
+  /** Chord-progression sequencer; switching tracks stops the previous one. */
   playMusic(track: MusicTrack): void {
     if (this.currentTrack === track) return;
     this.stopMusic();
-    if (!track || !this.ctx) {
-      this.currentTrack = track;
-      return;
-    }
     this.currentTrack = track;
-    this.beat = 0;
-    const patterns: Record<Exclude<MusicTrack, null>, { tempo: number; notes: (number | 0)[]; bass: (number | 0)[] }> = {
-      menu: { tempo: 320, notes: [440, 0, 523, 0, 659, 0, 523, 0], bass: [110, 0, 0, 0, 87, 0, 0, 0] },
-      explore: { tempo: 300, notes: [330, 0, 392, 440, 0, 392, 330, 0, 294, 0, 330, 0, 392, 0, 0, 0], bass: [110, 0, 0, 0, 98, 0, 0, 0, 87, 0, 0, 0, 98, 0, 0, 0] },
-      boss: { tempo: 190, notes: [220, 0, 220, 262, 0, 220, 0, 175], bass: [55, 55, 0, 55, 62, 0, 55, 0] },
-      results: { tempo: 240, notes: [523, 659, 784, 0, 659, 784, 1047, 0], bass: [131, 0, 0, 0, 98, 0, 0, 0] },
-      ending: { tempo: 400, notes: [392, 0, 494, 0, 587, 0, 494, 0], bass: [98, 0, 0, 0, 117, 0, 0, 0] },
-    };
-    const pat = patterns[track];
-    const step = (): void => {
+    if (!track || !this.ctx) return;
+    const def = TRACKS[track];
+    this.step = 0;
+    const stepMs = (60 / def.tempo / STEP_SUBDIV) * 1000;
+
+    const stepFn = (): void => {
       if (this.currentTrack !== track) return;
-      const i = this.beat % pat.notes.length;
-      const n = pat.notes[i];
-      const b = pat.bass[i];
-      if (n) this.tone(n, pat.tempo / 1000, { type: 'triangle', vol: 0.14, gain: this.musicGain });
-      if (b) this.tone(b, (pat.tempo / 1000) * 2, { type: 'sine', vol: 0.2, gain: this.musicGain });
-      this.beat += 1;
+      const s = this.step % 16;
+      const bar = Math.floor(this.step / 16) % def.progression.length;
+      const chord = def.progression[bar];
+
+      if (def.bassSteps.includes(s)) {
+        this.tone(chord.root, stepMs / 1000 * 1.8, { type: 'triangle', vol: 0.16, gain: this.musicGain });
+      }
+      const leadIdx = def.leadPattern[Math.floor(s / 2)];
+      if (s % 2 === 0 && leadIdx >= 0 && leadIdx < chord.tones.length) {
+        const freq = chord.tones[leadIdx] * 2;
+        this.tone(freq, stepMs / 1000 * 1.4, { type: def.leadWave, vol: def.leadVol, gain: this.musicGain, echo: true });
+      }
+      if (s === 0) {
+        chord.tones.forEach((tone, i) =>
+          this.tone(tone, stepMs / 1000 * 14, { type: 'sine', vol: 0.035, gain: this.musicGain, delay: i * 0.02 }),
+        );
+      }
+      if (def.kick.includes(s)) this.tone(120, 0.11, { type: 'sine', slideTo: 45, vol: 0.22, gain: this.musicGain });
+      if (def.snare.includes(s)) this.noise(0.07, 0.1, 0, this.musicGain);
+      if (def.hat.includes(s)) this.noise(0.025, 0.045, 0, this.musicGain);
+
+      this.step += 1;
     };
-    step();
-    this.musicTimer = setInterval(step, pat.tempo);
+    stepFn();
+    this.musicTimer = setInterval(stepFn, stepMs);
   }
 
   stopMusic(): void {

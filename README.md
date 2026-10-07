@@ -29,12 +29,15 @@ npm run dev        # http://localhost:8080
 | Action | Keyboard | Touch |
 | --- | --- | --- |
 | Move | A / D or Arrow Left / Right | Left cluster buttons |
-| Jump | Space | Jump button (right) |
+| Jump (double jump!) | W or Space | Jump button (right) |
 | Attack | J | Attack button (right) |
 | Dash | K | Dash button (small) |
 | Equipped skill | L | Skill button (small) |
 | Interact | E | Contextual button (appears in range) |
 | Pause | Esc | Pause button (HUD) |
+
+Pick Pip's look (boy **Pip** or girl **Pipa**) on the Character screen — New Game asks
+first, and the menu button switches anytime. Cosmetic only; Veyr rides on either back.
 
 Mobile gameplay is landscape-only; portrait shows *Rotate your device to play* and pauses.
 

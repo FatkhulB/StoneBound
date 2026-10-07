@@ -19,7 +19,7 @@ export type GameAction =
 const KEYMAP: Record<GameAction, number[]> = {
   left: [Phaser.Input.Keyboard.KeyCodes.A, Phaser.Input.Keyboard.KeyCodes.LEFT],
   right: [Phaser.Input.Keyboard.KeyCodes.D, Phaser.Input.Keyboard.KeyCodes.RIGHT],
-  jump: [Phaser.Input.Keyboard.KeyCodes.SPACE],
+  jump: [Phaser.Input.Keyboard.KeyCodes.W, Phaser.Input.Keyboard.KeyCodes.SPACE, Phaser.Input.Keyboard.KeyCodes.UP],
   attack: [Phaser.Input.Keyboard.KeyCodes.J],
   dash: [Phaser.Input.Keyboard.KeyCodes.K],
   skill: [Phaser.Input.Keyboard.KeyCodes.L],

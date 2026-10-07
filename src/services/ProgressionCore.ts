@@ -122,6 +122,10 @@ export function setDifficulty(save: PlayerSave, difficulty: DifficultyId): void 
   save.difficulty = difficulty;
 }
 
+export function setCharacter(save: PlayerSave, character: 'boy' | 'girl'): void {
+  save.character = character;
+}
+
 /** New Game: explicit reset of everything except the account id (design.md §10). */
 export function resetProgress(save: PlayerSave): void {
   // Mutate in place so existing references to the save object stay valid.

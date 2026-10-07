@@ -115,44 +115,53 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    if (this.invalidStage) {
+    try {
+      if (this.invalidStage) {
+        this.scene.start('StageSelect');
+        return;
+      }
+      this.runtimeState = 'exploration';
+      this.worldPaused = false;
+      this.deathProcessing = false;
+
+      this.buildMap();
+      this.buildNightWorld();
+      this.spawnObjects();
+      this.setupPlayer();
+      this.setupCamera();
+      this.setupEvents();
+
+      // ---- attempt state: fresh or resumed (design.md §7, §12) ----
+      const attempt = progression.current.activeAttempt;
+      this.attemptId = attempt?.attemptId ?? '';
+      this.attemptStartedAt = this.time.now;
+      if (attempt && attempt.stageId === this.stage.id && attempt.completionCommitted === false) {
+        this.ledger.restore(attempt);
+        this.lives = attempt.livesRemaining;
+        this.hasMainKey = attempt.hasMainKey;
+        this.keyTaken = attempt.hasMainKey;
+        this.bossDefeated = attempt.bossDefeated;
+        if (this.bossDefeated) this.markBossDefeatedRestored();
+        const snap = attempt.checkpointSnapshot;
+        if (snap) {
+          this.restoreSnapshot(snap);
+          this.player.respawnFullHp(snap.playerX, snap.playerY);
+        }
+      } else {
+        this.lives = STARTING_LIVES;
+      }
+
+      this.scene.launch('UI');
+      this.uiRef = this.scene.get('UI') as UIScene;
+      if (touchControls.isTouchDevice) touchControls.show();
+      audioManager.playMusic('explore');
+    } catch (err) {
+      // A broken stage must never leave the player stuck on a dead screen.
+      console.error('[STONEBOUND] stage failed to load', err);
+      EventBus.emit(EV.toast, 'Stage failed to load — returning to the map.');
       this.scene.start('StageSelect');
       return;
     }
-    this.runtimeState = 'exploration';
-    this.worldPaused = false;
-    this.deathProcessing = false;
-
-    this.buildMap();
-    this.spawnObjects();
-    this.setupPlayer();
-    this.setupCamera();
-    this.setupEvents();
-
-    // ---- attempt state: fresh or resumed (design.md §7, §12) ----
-    const attempt = progression.current.activeAttempt;
-    this.attemptId = attempt?.attemptId ?? '';
-    this.attemptStartedAt = this.time.now;
-    if (attempt && attempt.stageId === this.stage.id && attempt.completionCommitted === false) {
-      this.ledger.restore(attempt);
-      this.lives = attempt.livesRemaining;
-      this.hasMainKey = attempt.hasMainKey;
-      this.keyTaken = attempt.hasMainKey;
-      this.bossDefeated = attempt.bossDefeated;
-      if (this.bossDefeated) this.markBossDefeatedRestored();
-      const snap = attempt.checkpointSnapshot;
-      if (snap) {
-        this.restoreSnapshot(snap);
-        this.player.respawnFullHp(snap.playerX, snap.playerY);
-      }
-    } else {
-      this.lives = STARTING_LIVES;
-    }
-
-    this.scene.launch('UI');
-    this.uiRef = this.scene.get('UI') as UIScene;
-    if (touchControls.isTouchDevice) touchControls.show();
-    audioManager.playMusic('explore');
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
   }
@@ -313,6 +322,27 @@ export class GameScene extends Phaser.Scene {
         this.add.image(cx, bottom, 'exit_door').setOrigin(0.5, 1).setDepth(3);
         this.exitDoor = { x: cx, y: bottom };
         break;
+      case 'decor': {
+        // Living-world dressing: torches flicker, grass/flowers frame the path.
+        const kind = o.id ?? '';
+        if (kind.startsWith('torch')) {
+          const img = this.add.image(cx, bottom, 'torch1').setOrigin(0.5, 1).setDepth(2);
+          this.time.addEvent({
+            delay: 160,
+            loop: true,
+            callback: () => img.setTexture(img.texture.key === 'torch1' ? 'torch2' : 'torch1'),
+          });
+          const glow = this.add.image(cx, bottom - 9, 'spark').setScale(14, 10).setTint(0xffb054).setAlpha(0.13).setDepth(1);
+          this.tweens.add({ targets: glow, alpha: 0.07, duration: 300, yoyo: true, repeat: -1 });
+        } else if (kind.startsWith('grass')) {
+          this.add.image(cx, bottom, 'grass').setOrigin(0.5, 1).setDepth(2);
+        } else if (kind.startsWith('flower')) {
+          this.add.image(cx, bottom, 'flower').setOrigin(0.5, 1).setDepth(2);
+        } else if (kind.startsWith('column')) {
+          this.add.image(cx, bottom, 'column').setOrigin(0.5, 1).setDepth(0).setAlpha(0.85);
+        }
+        break;
+      }
       default:
         break;
     }
@@ -322,7 +352,7 @@ export class GameScene extends Phaser.Scene {
     const spawn = this.stage.objects.find((o) => o.type === 'spawn');
     const x = spawn ? spawn.x * TILE + 8 : 32;
     const y = spawn ? (spawn.y ?? 17) * TILE : 270;
-    this.player = new Player(this, x, y, this.difficulty);
+    this.player = new Player(this, x, y, this.difficulty, progression.current.character);
     this.physics.add.collider(this.player, this.layer);
     for (const b of this.blocks) this.physics.add.collider(this.player, b.sprite);
     for (const b of this.blocks) {
@@ -332,6 +362,95 @@ export class GameScene extends Phaser.Scene {
     }
     for (const g of this.gates.values()) this.physics.add.collider(this.player, g.image);
     for (const c of this.cracked.values()) for (const img of c.images) this.physics.add.collider(this.player, img);
+  }
+
+  /**
+   * Living night world behind the playable layer: gradient sky, twinkling stars,
+   * a crescent moon, drifting clouds, ruined towers with lit windows, and
+   * fireflies wandering near the ground (design.md §4 "vibes" pass).
+   */
+  private nightClouds: { image: Phaser.GameObjects.TileSprite; speed: number }[] = [];
+
+  private buildNightWorld(): void {
+    const pxW = this.stage.width * TILE;
+    const pxH = this.stage.height * TILE;
+    const cam = this.cameras.main;
+    cam.setBackgroundColor('#0b0d18');
+
+    // Gradient sky bands (parallax ~fixed).
+    const sky = this.add.graphics().setScrollFactor(0.02, 0.02).setDepth(-6);
+    const bands = ['#0b0d18', '#101226', '#171a33', '#1d2040'];
+    bands.forEach((c, i) => {
+      sky.fillStyle(Phaser.Display.Color.HexStringToColor(c).color, 1);
+      sky.fillRect(0, i * 46, cam.width + 4, 47);
+    });
+
+    // Stars: static field + a few twinklers, far background.
+    const starGfx = this.add.graphics().setScrollFactor(0.05, 0.05).setDepth(-5);
+    starGfx.fillStyle(0xffffff, 0.85);
+    for (let i = 0; i < 90; i++) {
+      starGfx.fillRect(Phaser.Math.Between(4, cam.width - 4), Phaser.Math.Between(4, 150), 1, 1);
+    }
+    for (let i = 0; i < 10; i++) {
+      const s = this.add
+        .image(Phaser.Math.Between(10, cam.width - 10), Phaser.Math.Between(8, 140), 'spark')
+        .setScrollFactor(0.05, 0.05)
+        .setDepth(-5)
+        .setAlpha(0.9);
+      this.tweens.add({ targets: s, alpha: 0.15, duration: Phaser.Math.Between(800, 2000), yoyo: true, repeat: -1 });
+    }
+
+    // Moon (slow parallax).
+    this.add.image(cam.width - 60, 34, 'moon').setScrollFactor(0.04, 0.04).setDepth(-5);
+
+    // Drifting clouds, three parallax depths.
+    const mkCloud = (key: string, y: number, scroll: number, speed: number, alpha: number): void => {
+      const img = this.add
+        .tileSprite(0, y, pxW + 240, 20, key)
+        .setOrigin(0, 0)
+        .setScrollFactor(scroll, 0.1)
+        .setDepth(-4)
+        .setAlpha(alpha);
+      this.nightClouds.push({ image: img, speed });
+    };
+    mkCloud('cloud1', 24, 0.12, 2.2, 0.75);
+    mkCloud('cloud2', 52, 0.18, -1.6, 0.65);
+    mkCloud('cloud1', 80, 0.24, 1.1, 0.5);
+
+    // Ruined towers with lit windows + dead trees, mid-ground.
+    const towers = this.add
+      .tileSprite(0, pxH - 160, pxW + 240, 74, 'tower_bg')
+      .setOrigin(0, 0)
+      .setScrollFactor(0.35, 0.9)
+      .setDepth(-3)
+      .setAlpha(0.95);
+    void towers;
+    this.add.tileSprite(0, pxH - 120, pxW + 240, 44, 'tree').setOrigin(0, 0).setScrollFactor(0.5, 0.92).setDepth(-2).setAlpha(0.7);
+
+    // Near hills (existing silhouette).
+    this.add
+      .tileSprite(0, pxH - 76, pxW, 70, 'hills_near')
+      .setOrigin(0, 0)
+      .setScrollFactor(0.3, 0.95)
+      .setDepth(-2)
+      .setAlpha(0.9);
+
+    // Fireflies wandering near the ground across the whole stage.
+    for (let i = 0; i < 12; i++) {
+      const fx = Phaser.Math.Between(40, pxW - 40);
+      const fy = pxH - Phaser.Math.Between(20, 90);
+      const fly = this.add.image(fx, fy, 'firefly').setDepth(2).setAlpha(0.7);
+      this.tweens.add({
+        targets: fly,
+        x: fx + Phaser.Math.Between(-50, 50),
+        y: fy + Phaser.Math.Between(-22, 22),
+        alpha: 0.25,
+        duration: Phaser.Math.Between(1600, 3200),
+        yoyo: true,
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 1200),
+      });
+    }
   }
 
   private setupCamera(): void {
@@ -391,6 +510,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     const dt = delta / 1000;
+    for (const cloud of this.nightClouds) cloud.image.tilePositionX += cloud.speed * dt * 10;
 
     this.player.update(this.time.now, delta, this.inputMgr);
     this.updateEnemies();
@@ -488,6 +608,7 @@ export class GameScene extends Phaser.Scene {
       if (hitbox.contains(e.x, e.y - 6) && hit(id)) {
         const wasAlive = e.hp > 0;
         e.hurt(damage, this.player.x);
+        this.hitSparks(e.x, e.y - 6, 0xff9ecb);
         if (wasAlive && e.dead) {
           // Enemy reward: 1–3 coins, granted once per enemy per attempt (design.md §8).
           const reward = Phaser.Math.Between(1, 3);
@@ -497,7 +618,10 @@ export class GameScene extends Phaser.Scene {
       }
     });
     if (this.boss && !this.boss.defeated && this.boss.state !== 'dormant') {
-      if (hitbox.contains(this.boss.x, this.boss.y - 20) && hit('boss')) this.boss.hurt(damage);
+      if (hitbox.contains(this.boss.x, this.boss.y - 20) && hit('boss')) {
+        this.boss.hurt(damage);
+        this.hitSparks(this.boss.x, this.boss.y - 20, 0xffd24a);
+      }
     }
     // Boss body contact damage.
     if (this.boss && !this.boss.defeated && this.boss.state !== 'dormant') {
@@ -700,6 +824,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ------------------------------------------------------------ gates & puzzle
+
+  /** Impact spark burst that sells every landed hit. */
+  private hitSparks(x: number, y: number, tint: number): void {
+    for (let i = 0; i < 7; i++) {
+      const p = this.add.image(x, y, 'spark').setDepth(8).setTint(i % 2 ? tint : 0xffffff).setScale(0.8);
+      this.tweens.add({
+        targets: p,
+        x: x + Phaser.Math.Between(-18, 18),
+        y: y + Phaser.Math.Between(-14, 10),
+        alpha: 0,
+        angle: Phaser.Math.Between(-90, 90),
+        duration: 240,
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
 
   private openGate(id: string): void {
     const gate = this.gates.get(id);

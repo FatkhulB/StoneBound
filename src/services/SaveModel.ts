@@ -49,6 +49,8 @@ export interface PlayerSave {
   revision: number;
   updatedAt: number;
   accountId: string;
+  /** Cosmetic hero variant chosen on the character select screen. */
+  character: 'boy' | 'girl';
   unlockedStage: number;
   completedStageIds: number[];
   firstClearClaimedIds: number[];
@@ -68,6 +70,7 @@ export function createDefaultSave(accountId: string): PlayerSave {
     revision: 0,
     updatedAt: 0,
     accountId,
+    character: 'boy',
     unlockedStage: 1,
     completedStageIds: [],
     firstClearClaimedIds: [],
@@ -126,6 +129,7 @@ export function validateSave(raw: unknown): { ok: boolean; save: PlayerSave; err
     revision: isFiniteNumber(s.revision) ? s.revision : 0,
     updatedAt: isFiniteNumber(s.updatedAt) ? s.updatedAt : 0,
     accountId: typeof s.accountId === 'string' ? s.accountId : fallback.accountId,
+    character: s.character === 'girl' ? 'girl' : 'boy',
     unlockedStage: isFiniteNumber(s.unlockedStage) ? Math.max(1, Math.floor(s.unlockedStage)) : 1,
     completedStageIds: isNumberArray(s.completedStageIds) ? s.completedStageIds : [],
     firstClearClaimedIds: isNumberArray(s.firstClearClaimedIds) ? s.firstClearClaimedIds : [],

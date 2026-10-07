@@ -1,10 +1,22 @@
 # STONEBOUND — Game Design Document & PRD
 
-Version: 0.2
+Version: 0.3
 Date: October 7, 2026
 Status: Implementation-ready draft. Core requirements and story direction are approved; balancing values and implementation details are proposals for playtesting.
 Document language: English
 Game language: English
+
+## 0. Changelog
+
+- **0.3 (art & feel pass):** pixel-art heroes with outline & shading and a
+  **character select (Pip boy / Pipa girl, cosmetic)**; **W or Space jumps, with
+  double jump** (air jump with its own puff + sound); readable **slash arc +
+  lunge + hit sparks** on attacks; night-monument world dressing (moon, stars,
+  drifting clouds, ruined towers with lit windows, torches, grass, fireflies);
+  chord-progression music sequencer (bass/lead/pad/percussion) replacing the
+  flat loops; punchier attack SFX; New Game now routes through character select
+  and correctly resets the save. Controls: **A/D move, W/Space jump, J attack,
+  K dash, E interact** (arrows still supported).
 
 ## 1. Product Overview
 

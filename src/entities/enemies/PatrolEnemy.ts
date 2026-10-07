@@ -14,6 +14,8 @@ export class PatrolEnemy extends Phaser.Physics.Arcade.Sprite {
   private readonly minX: number;
   private readonly maxX: number;
   private flashUntil = 0;
+  private walkTimer = 0;
+  private walkFrame: 1 | 2 = 1;
 
   constructor(
     scene: Phaser.Scene,
@@ -23,7 +25,7 @@ export class PatrolEnemy extends Phaser.Physics.Arcade.Sprite {
     minX: number,
     maxX: number,
   ) {
-    super(scene, x, y, 'patrol');
+    super(scene, x, y, 'patrol1');
     this.id = id;
     this.minX = minX;
     this.maxX = maxX;
@@ -31,8 +33,8 @@ export class PatrolEnemy extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     this.setOrigin(0.5, 1);
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(14, 11);
-    body.setOffset(1, 2);
+    body.setSize(13, 10);
+    body.setOffset(1, 1);
     this.setDepth(4);
   }
 
@@ -50,9 +52,15 @@ export class PatrolEnemy extends Phaser.Physics.Arcade.Sprite {
     }
     body.setVelocityX(this.dir * this.speed);
     this.setFlipX(this.dir === -1);
+    // 2-frame waddle animation.
+    this.walkTimer += dt;
+    if (this.walkTimer > 240) {
+      this.walkTimer = 0;
+      this.walkFrame = this.walkFrame === 1 ? 2 : 1;
+    }
+    this.setTexture(this.walkFrame === 1 ? 'patrol1' : 'patrol2');
     if (this.scene.time.now < this.flashUntil) this.setTintFill(0xffffff);
     else this.clearTint();
-    void dt;
   }
 
   hurt(damage: number, fromX: number): void {

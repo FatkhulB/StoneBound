@@ -4,6 +4,7 @@ import { BootScene, PreloadScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { StorySelectScene } from './scenes/StorySelectScene';
 import { StageSelectScene } from './scenes/StageSelectScene';
+import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { ShopScene } from './scenes/ShopScene';
 import { SettingsScene, PauseScene, GameOverScene, ResultScene } from './scenes/OverlayScenes';
 import { GameScene } from './scenes/GameScene';
@@ -46,6 +47,7 @@ async function bootstrap(): Promise<void> {
       BootScene,
       PreloadScene,
       MenuScene,
+      CharacterSelectScene,
       StorySelectScene,
       StageSelectScene,
       ShopScene,
@@ -57,6 +59,24 @@ async function bootstrap(): Promise<void> {
       ResultScene,
     ],
   });
+
+  // Uncaught errors surface on a visible overlay instead of leaving a dead
+  // screen — a crash must always be reportable (design.md §12 spirit).
+  const showFatal = (message: string): void => {
+    let el = document.getElementById('fatal-overlay');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'fatal-overlay';
+      el.style.cssText =
+        'position:fixed;inset:auto 12px 12px 12px;z-index:99;background:#2a1020;color:#ffd1e0;' +
+        'font:11px/1.5 monospace;padding:10px 12px;border:2px solid #ff5f9e;border-radius:6px;white-space:pre-wrap';
+      document.body.appendChild(el);
+    }
+    el.textContent = `⚠ ${message}`;
+    setTimeout(() => el?.remove(), 8000);
+  };
+  window.addEventListener('error', (e) => showFatal(e.message || 'Unknown error'));
+  window.addEventListener('unhandledrejection', (e) => showFatal(String((e.reason as Error)?.message ?? e.reason ?? 'Promise rejected')));
 
   // Portrait on touch devices pauses gameplay and shows the rotate overlay (design.md §10).
   const portraitOverlay = document.getElementById('portrait-overlay');
