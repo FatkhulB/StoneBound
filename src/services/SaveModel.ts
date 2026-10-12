@@ -106,6 +106,37 @@ function isNumberArray(v: unknown): v is number[] {
 }
 
 /**
+ * Snapshot korup dari cloud/local tidak boleh crash game.
+ * Kembalikan null bila koordinat tidak finite, agar attempt lanjut dari spawn.
+ */
+function sanitizeSnapshot(raw: unknown): WorldSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Record<string, unknown>;
+  if (!isFiniteNumber(s.playerX) || !isFiniteNumber(s.playerY)) return null;
+  if (Math.abs(s.playerX as number) > 100000 || Math.abs(s.playerY as number) > 100000) return null;
+  const blocksRaw = Array.isArray(s.blocks) ? s.blocks : [];
+  const blocks: WorldSnapshot['blocks'] = [];
+  for (const b of blocksRaw) {
+    if (!b || typeof b !== 'object') continue;
+    const bb = b as Record<string, unknown>;
+    if (typeof bb.id !== 'string' || !isFiniteNumber(bb.x) || !isFiniteNumber(bb.y)) continue;
+    if (Math.abs(bb.x as number) > 100000 || Math.abs(bb.y as number) > 100000) continue;
+    blocks.push({ id: bb.id, x: bb.x as number, y: bb.y as number });
+  }
+  return {
+    playerX: s.playerX as number,
+    playerY: s.playerY as number,
+    blocks,
+    platesPressed: isStringArray(s.platesPressed) ? s.platesPressed : [],
+    gatesOpen: isStringArray(s.gatesOpen) ? s.gatesOpen : [],
+    crackedOpen: isStringArray(s.crackedOpen) ? s.crackedOpen : [],
+    enemiesDead: isStringArray(s.enemiesDead) ? s.enemiesDead : [],
+    hasMainKey: s.hasMainKey === true,
+    bossDefeated: s.bossDefeated === true,
+  };
+}
+
+/**
  * Strict validation: a corrupt or unsupported save must not crash the game
  * (design.md §12). Returns a fresh default when unrecoverable.
  */
@@ -122,7 +153,7 @@ export function validateSave(raw: unknown): { ok: boolean; save: PlayerSave; err
   const attempt = s.activeAttempt as Record<string, unknown> | null;
 
   const difficultiesOk = typeof s.difficulty === 'string' && DIFFICULTY_IDS.includes(s.difficulty as DifficultyId);
-  const snapshot = attempt?.checkpointSnapshot as WorldSnapshot | null;
+  const snapshot = sanitizeSnapshot(attempt?.checkpointSnapshot);
 
   const save: PlayerSave = {
     schemaVersion: SCHEMA_VERSION,

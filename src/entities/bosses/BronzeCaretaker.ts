@@ -173,7 +173,7 @@ export class BronzeCaretaker extends Phaser.Physics.Arcade.Sprite {
         break;
       }
       case 'leap': {
-        if (body.blocked.down) {
+        if (body.blocked?.down) {
           this.state = 'land';
           this.stateUntil = now + 620;
           body.setVelocityX(0);

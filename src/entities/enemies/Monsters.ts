@@ -65,8 +65,9 @@ export class WalkerMonster extends Phaser.Physics.Arcade.Sprite {
 
   update(dt: number, ctx: MonsterContext): void {
     if (this.dead) return;
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    const grounded = body.blocked.down;
+    const body = this.body as Phaser.Physics.Arcade.Body | null;
+    if (!body) return;
+    const grounded = !!body.blocked?.down;
     const now = this.scene.time.now;
     const dx = ctx.playerX - this.x;
     const dy = Math.abs(ctx.playerY - this.y);
@@ -78,7 +79,7 @@ export class WalkerMonster extends Phaser.Physics.Arcade.Sprite {
       const aheadX = this.x + this.dir * 10;
       if (
         grounded &&
-        (!ctx.groundAhead(aheadX, this.y + 4) || body.blocked.left || body.blocked.right ||
+        (!ctx.groundAhead(aheadX, this.y + 4) || body.blocked?.left || body.blocked?.right ||
           (this.aiState === 'patrol' && (aheadX < this.minX || aheadX > this.maxX)))
       ) {
         this.dir = (this.dir === 1 ? -1 : 1) as 1 | -1;

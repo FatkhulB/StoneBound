@@ -66,8 +66,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   update(time: number, dt: number, input: InputManager): void {
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    const grounded = body.blocked.down || body.touching.down;
+    const body = this.body as Phaser.Physics.Arcade.Body | null;
+    if (!body) return;
+    const grounded = body.blocked?.down || body.touching?.down;
 
     if (this.dying) {
       body.setVelocityX(0);

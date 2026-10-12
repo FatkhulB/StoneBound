@@ -505,6 +505,7 @@ export class GameScene extends Phaser.Scene {
   // ------------------------------------------------------------ frame
 
   update(_time: number, delta: number): void {
+    if (!this.player || !this.inputMgr || !this.map) return;
     this.inputMgr.update();
     this.uiRef?.setHudState({
       hp: this.player.hp,
@@ -595,10 +596,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateBlocks(): void {
-    const pv = (this.player.body as Phaser.Physics.Arcade.Body).velocity;
+    if (!this.player?.body) return;
+    const pv = (this.player.body as Phaser.Physics.Arcade.Body | null)?.velocity;
+    if (!pv) return;
     for (const b of this.blocks) {
-      const body = b.sprite.body as Phaser.Physics.Arcade.Body;
-      if (!body.blocked.down && body.velocity.y !== 0) continue; // only push grounded blocks
+      const body = b.sprite.body as Phaser.Physics.Arcade.Body | null;
+      if (!body) continue;
+      if (!body.blocked?.down && body.velocity.y !== 0) continue; // only push grounded blocks
       const dx = b.sprite.x - this.player.x;
       const dy = b.sprite.y - this.player.y;
       if (
@@ -616,8 +620,9 @@ export class GameScene extends Phaser.Scene {
     let allPressed = true;
     for (const plate of this.plates) {
       const pressed = this.blocks.some((b) => {
-        const body = b.sprite.body as Phaser.Physics.Arcade.Body;
-        return Math.abs(b.sprite.x - plate.x) < 7 && Math.abs(b.sprite.y - (plate.y - 7)) < 10 && body.blocked.down;
+        const body = b.sprite.body as Phaser.Physics.Arcade.Body | null;
+        if (!body) return false;
+        return Math.abs(b.sprite.x - plate.x) < 7 && Math.abs(b.sprite.y - (plate.y - 7)) < 10 && !!body.blocked?.down;
       });
       plate.image.setTexture(pressed ? 'plate_down' : 'plate_up');
       if (!pressed) allPressed = false;
