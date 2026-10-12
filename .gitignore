@@ -1,5 +1,8 @@
 node_modules/
 dist/
+dist-barri/
+portweb-tmp/
+portweb-tmp2/
 coverage/
 .env
 .env.local
