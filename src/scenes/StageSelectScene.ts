@@ -40,41 +40,48 @@ export class StageSelectScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // ---- stage grid: 5 × 2 ----
+    // Aturan: yang tersedia (playable + unlocked) bisa dimainkan,
+    // yang belum tersedia tampil sebagai Coming Soon.
     STAGES.forEach((stage, i) => {
       const col = i % 5;
       const row = Math.floor(i / 5);
       const x = width / 2 + (col - 2) * 82;
       const y = 96 + row * 60;
       const unlocked = isStageUnlocked(stage.id, save.unlockedStage);
+      const playable = stage.playable === true;
+      const available = unlocked && playable;
+      const comingSoon = !playable;
       const completed = save.completedStageIds.includes(stage.id);
       const firstClear = save.firstClearClaimedIds.includes(stage.id);
 
-      const card = this.add.rectangle(x, y, 74, 50, unlocked ? 0x182036 : 0x10131f, 0.97);
-      card.setStrokeStyle(2, completed ? 0x38d6c4 : unlocked ? 0xffd24a : 0x525f80, unlocked ? 1 : 0.6);
+      const card = this.add.rectangle(x, y, 74, 50, available ? 0x182036 : 0x10131f, 0.97);
+      card.setStrokeStyle(2, completed ? 0x38d6c4 : available ? 0xffd24a : 0x525f80, available ? 1 : 0.6);
 
       this.add
-        .text(x, y - 16, `${stage.id}`, { fontFamily: 'monospace', fontSize: '14px', color: cssColor(unlocked ? COLORS.teal : COLORS.uiMuted) })
+        .text(x, y - 16, `${stage.id}`, { fontFamily: 'monospace', fontSize: '14px', color: cssColor(available ? COLORS.teal : COLORS.uiMuted) })
         .setOrigin(0.5);
+      const nameLabel = comingSoon ? 'COMING SOON' : unlocked ? stage.name : '???';
       this.add
-        .text(x, y - 2, unlocked ? stage.name : '???', {
+        .text(x, y - 2, nameLabel, {
           fontFamily: 'monospace',
           fontSize: '6px',
-          color: cssColor(unlocked ? COLORS.uiText : COLORS.uiMuted),
+          color: cssColor(available || comingSoon ? COLORS.uiText : COLORS.uiMuted),
           align: 'center',
           wordWrap: { width: 68 },
         })
         .setOrigin(0.5);
-      const status = completed ? (firstClear ? 'CLEAR ★' : 'CLEAR') : unlocked ? 'READY' : 'LOCKED';
+      const status = completed ? (firstClear ? 'CLEAR ★' : 'CLEAR') : comingSoon ? 'COMING SOON' : available ? 'READY' : 'LOCKED';
       this.add
         .text(x, y + 16, status, {
           fontFamily: 'monospace',
           fontSize: '7px',
-          color: cssColor(completed ? COLORS.uiAccent : unlocked ? COLORS.gold : COLORS.uiMuted),
+          color: cssColor(completed ? COLORS.uiAccent : available ? COLORS.gold : COLORS.uiMuted),
         })
         .setOrigin(0.5);
 
-      if (unlocked) {
+      if (available) {
         // once() + starting guard: no double-start, no "stuck on the menu".
+        // Non-playable tidak pernah bisa diklik walau unlocked.
         card.setInteractive({ useHandCursor: true }).once('pointerdown', () => {
           if (this.startingStage !== 0) return;
           this.startingStage = stage.id;
@@ -85,7 +92,7 @@ export class StageSelectScene extends Phaser.Scene {
     });
 
     this.add
-      .text(width / 2, height - 24, 'Stages 2–10 arrive in a later milestone. Stage 1: The Fallen Monument.', {
+      .text(width / 2, height - 24, 'Stage 1 playable now. Stages 2–10: Coming Soon.', {
         fontFamily: 'monospace',
         fontSize: '7px',
         color: cssColor(COLORS.uiMuted),
