@@ -86,13 +86,16 @@ export class MenuScene extends Phaser.Scene {
       ? progression.isSignedIn
         ? 'Sign out (cloud on)'
         : 'Sign in with Google'
-      : 'Cloud saves not configured';
+      : 'Cloud: OFF - Local only';
+    const authMuted = !progression.cloudConfigured;
     makeButton(this, cx, y + 4, authLabel, {
-      width: 210,
-      muted: !progression.cloudConfigured || progression.isSignedIn,
+      width: 190,
+      height: 18,
+      accent: progression.isSignedIn ? 'teal' : 'pink',
+      muted: authMuted,
       onClick: () => {
         if (!progression.cloudConfigured) {
-          EventBus.emit(EV.toast, 'Add Firebase config in .env to enable cloud saves.');
+          EventBus.emit(EV.toast, 'Cloud off — add Firebase .env to enable sync.');
           return;
         }
         if (progression.isSignedIn) void progression.signOut().then(() => this.scene.restart());
@@ -101,21 +104,43 @@ export class MenuScene extends Phaser.Scene {
             .signInGoogle()
             .then(() => this.scene.restart())
             .catch((err: unknown) => {
-              const code = String((err as { code?: string })?.code ?? err ?? '');
+              const raw = String((err as { code?: string })?.code ?? (err as Error)?.message ?? err ?? '');
+              if (raw.includes('redirecting')) {
+                EventBus.emit(EV.toast, 'Opening Google sign-in...');
+                return;
+              }
               const msg =
-                code.includes('popup-blocked')
-                  ? 'Popup blocked — allow popups for this site and try again.'
-                  : code.includes('popup-closed-by-user')
+                raw.includes('popup-blocked')
+                  ? 'Popup blocked — allow popups, retrying via redirect...'
+                  : raw.includes('popup-closed-by-user') || raw.includes('cancelled-popup-request')
                     ? 'Sign-in cancelled.'
-                    : code.includes('unauthorized-domain')
+                    : raw.includes('unauthorized-domain')
                       ? 'Domain not authorized in Firebase Authentication settings.'
-                      : 'Sign-in failed — check your connection and try again.';
+                      : raw.includes('cloud-not-configured')
+                        ? 'Cloud off — add Firebase .env to enable sync.'
+                        : raw.includes('network-request-failed')
+                          ? 'Network offline — staying on local save.'
+                          : 'Sign-in failed — check connection and try again.';
               EventBus.emit(EV.toast, msg);
             });
         }
       },
     });
     next();
+
+    // Footer status bar (menggantikan "Cloud saves not configured" yang membingungkan).
+    const cloudStatus = progression.cloudConfigured
+      ? progression.isSignedIn
+        ? 'Cloud: ON - synced'
+        : 'Cloud: ON - sign in to sync'
+      : 'Cloud: OFF - local save only';
+    this.add
+      .text(cx, height - 34, cloudStatus, {
+        fontFamily: 'monospace',
+        fontSize: '7px',
+        color: cssColor(COLORS.uiMuted),
+      })
+      .setOrigin(0.5);
 
     this.add
       .text(cx, height - 22, 'A / D move · W or SPACE jump (double jump!) · J attack · K dash · E interact', {

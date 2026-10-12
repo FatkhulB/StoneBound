@@ -1,9 +1,13 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import {
   GoogleAuthProvider,
+  browserLocalPersistence,
   getAuth,
+  getRedirectResult,
   onAuthStateChanged,
+  setPersistence,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   type Auth,
   type User,
@@ -20,12 +24,9 @@ import { EV, EventBus } from '../utils/EventBus';
 import { validateSave, type PlayerSave } from './SaveModel';
 
 /**
- * Cloud persistence (design.md §12). The Firebase SDK is fully wired, but stays
- * INACTIVE until the repository owner provides a real project config in .env /
- * CI secrets (see README.md). Until then the game runs in Guest/Local mode.
- *
- * NOT YET TESTED against a live project — milestone 4 covers authentication,
- * deployed rules and cross-device tests. Do not assume it works until then.
+ * Cloud persistence (design.md §12). Aktif ketika VITE_FIREBASE_* terisi
+ * (.env untuk dev lokal, .env.production / CI secrets untuk Pages).
+ * Tanpa config → Guest/Local mode (localStorage saja).
  */
 
 interface FirebaseEnvConfig {
@@ -40,12 +41,12 @@ interface FirebaseEnvConfig {
 function readEnvConfig(): FirebaseEnvConfig | null {
   const env = import.meta.env;
   const cfg: FirebaseEnvConfig = {
-    apiKey: env.VITE_FIREBASE_API_KEY ?? '',
-    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
-    projectId: env.VITE_FIREBASE_PROJECT_ID ?? '',
-    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET ?? '',
-    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? '',
-    appId: env.VITE_FIREBASE_APP_ID ?? '',
+    apiKey: (env.VITE_FIREBASE_API_KEY as string ?? '').trim(),
+    authDomain: (env.VITE_FIREBASE_AUTH_DOMAIN as string ?? '').trim(),
+    projectId: (env.VITE_FIREBASE_PROJECT_ID as string ?? '').trim(),
+    storageBucket: (env.VITE_FIREBASE_STORAGE_BUCKET as string ?? '').trim(),
+    messagingSenderId: (env.VITE_FIREBASE_MESSAGING_SENDER_ID as string ?? '').trim(),
+    appId: (env.VITE_FIREBASE_APP_ID as string ?? '').trim(),
   };
   const missing = Object.values(cfg).some((v) => !v);
   // Half-configured / placeholder values must not produce a broken initializeApp.
@@ -59,37 +60,110 @@ class CloudSaveManager {
   private db: Firestore | null = null;
   private user: User | null = null;
   private writesAllowed = true;
+  private initStarted = false;
+  private initPromise: Promise<void> | null = null;
+  private authReadyResolve: (() => void) | null = null;
+  private authReadyPromise: Promise<void>;
+
+  constructor() {
+    this.authReadyPromise = new Promise<void>((resolve) => {
+      this.authReadyResolve = resolve;
+    });
+  }
 
   get isConfigured(): boolean {
     return readEnvConfig() !== null;
-  }
-
-  init(): void {
-    if (this.app || !this.isConfigured) return;
-    const cfg = readEnvConfig()!;
-    this.app = getApps().length ? getApps()[0] : initializeApp(cfg);
-    this.auth = getAuth(this.app);
-    this.db = getFirestore(this.app);
-    onAuthStateChanged(this.auth, (user) => {
-      this.user = user;
-      this.writesAllowed = true;
-    });
   }
 
   get currentUser(): User | null {
     return this.user;
   }
 
+  get firestore(): Firestore | null {
+    return this.db;
+  }
+
+  init(): void {
+    if (this.app || this.initStarted || !this.isConfigured) {
+      // Tetap resolve agar penunggu tidak menggantung saat tidak dikonfigurasi.
+      if (!this.isConfigured) this.authReadyResolve?.();
+      return;
+    }
+    this.initStarted = true;
+    this.initPromise = this.initAsync();
+  }
+
+  /** Tunggu Firebase Auth selesai restore sesi (penting agar refresh tetap login). */
+  async ready(): Promise<void> {
+    this.init();
+    await this.initPromise;
+    await this.authReadyPromise;
+  }
+
+  private async initAsync(): Promise<void> {
+    try {
+      const cfg = readEnvConfig();
+      if (!cfg) {
+        this.authReadyResolve?.();
+        return;
+      }
+      this.app = getApps().length ? getApps()[0] : initializeApp(cfg);
+      this.auth = getAuth(this.app);
+      this.db = getFirestore(this.app);
+      try {
+        await setPersistence(this.auth, browserLocalPersistence);
+      } catch (err) {
+        console.warn('[STONEBOUND] auth persistence fallback', err);
+      }
+      // Selesaikan login redirect (fallback dari signInGoogle) bila ada.
+      try {
+        const redirect = await getRedirectResult(this.auth);
+        if (redirect?.user) this.user = redirect.user;
+      } catch (err) {
+        console.warn('[STONEBOUND] redirect login result failed', err);
+      }
+      onAuthStateChanged(
+        this.auth,
+        (user) => {
+          this.user = user;
+          // Sesi baru (atau baru login) boleh menulis lagi.
+          if (user) this.writesAllowed = true;
+          this.authReadyResolve?.();
+        },
+        () => {
+          this.authReadyResolve?.();
+        },
+      );
+    } catch (err) {
+      console.warn('[STONEBOUND] cloud init failed, falling back to local', err);
+      this.authReadyResolve?.();
+    }
+  }
+
   /** Google sign-in (design.md §12). Throws when cloud is not configured. */
   async signInGoogle(): Promise<User> {
-    this.init();
+    await this.ready();
     if (!this.auth) throw new Error('cloud-not-configured');
-    const credential = await signInWithPopup(this.auth, new GoogleAuthProvider());
-    return credential.user;
+    try {
+      const credential = await signInWithPopup(this.auth, new GoogleAuthProvider());
+      this.user = credential.user;
+      this.writesAllowed = true;
+      return credential.user;
+    } catch (err) {
+      const code = String((err as { code?: string })?.code ?? '');
+      // Popup diblokir / tidak didukung (mobile, iframe, popup-blocker) → pakai redirect.
+      if (code.includes('popup-blocked') || code.includes('operation-not-supported') || code.includes('popup-window-closed')) {
+        await signInWithRedirect(this.auth, new GoogleAuthProvider());
+        throw new Error('redirecting');
+      }
+      throw err;
+    }
   }
 
   async signOut(): Promise<void> {
     if (this.auth) await signOut(this.auth);
+    this.user = null;
+    this.writesAllowed = true;
   }
 
   private saveRef(uid: string) {
@@ -98,7 +172,7 @@ class CloudSaveManager {
 
   /** Pull the cloud save. Returns null when none exists yet. */
   async pull(): Promise<PlayerSave | null> {
-    this.init();
+    await this.ready();
     if (!this.db || !this.user) return null;
     try {
       const snap = await getDoc(this.saveRef(this.user.uid));
@@ -117,7 +191,7 @@ class CloudSaveManager {
    * cloud save (design.md §12). Emits 'conflict' when the cloud is ahead.
    */
   async push(save: PlayerSave): Promise<'saved' | 'conflict' | 'offline'> {
-    this.init();
+    await this.ready();
     if (!this.db || !this.user) return 'offline';
     if (!this.writesAllowed) return 'offline'; // lease lost to a newer session
     try {

@@ -19,6 +19,12 @@ class ProgressionManager {
   /** Load the best available save: cloud when signed in, else local. */
   async load(): Promise<void> {
     cloudSaveManager.init();
+    // Tunggu restore sesi Google agar refresh tidak kehilangan cloud save.
+    try {
+      await cloudSaveManager.ready();
+    } catch {
+      /* tetap lanjut dengan local save */
+    }
     if (cloudSaveManager.isConfigured && cloudSaveManager.currentUser) {
       const cloud = await cloudSaveManager.pull();
       const local = LocalSaveManager.load();
@@ -169,7 +175,7 @@ class ProgressionManager {
     await cloudSaveManager.signOut();
     this.save = createDefaultSave(LocalSaveManager.guestAccountId());
     LocalSaveManager.save(this.save);
-    EventBus.emit(EV.saveStatus, 'not-configured');
+    EventBus.emit(EV.saveStatus, cloudSaveManager.isConfigured ? 'local' : 'not-configured');
   }
 
   /** Conflict resolution hook (design.md §12): explicit user choice. */
